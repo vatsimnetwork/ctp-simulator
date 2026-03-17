@@ -13,14 +13,23 @@ namespace CTPSimulator
 
         public uint RouteRevision { get; set; }
         public uint SlotRevision { get; set; }
+
+
         public DateOnly SynchronizationDate { get; set; }
         public double SynchronizationLongitude { get; set; } = -30;
         public TimeSpan DepartureTimeWindow { get; set; } = TimeSpan.FromHours(3); // how long will departure airports depart for?
 
-        public List<Location> Waypoints { get; set; } = new();
-        public List<Airport> Airports { get; set; } = new();
-        public List<RouteSegment> RouteSegments { get; set; } = new();
+        public SimulatorCalculationOptions CalculationOptions { get; set; } = new();
 
+
+        // througput points
+        public List<Airport> Airports { get; set; } = new();
+        public List<Location> Waypoints { get; set; } = new();
+        public List<RouteSegment> RouteSegments { get; set; } = new();
+        public List<Sector> Sectors { get; set; } = new();
+
+
+        // values populated by the simulator
         [NotMapped]
         public List<Airport> DepartureAirports { get; set; } = new();
 
@@ -28,32 +37,41 @@ namespace CTPSimulator
         public List<Airport> ArrivalAirports { get; set; } = new();
 
 
-        // values populated by the simulator
         public List<Slot> Slots { get; set; } = new();
         public TimeSpan SimulationAnalysisResolution { get; set; } = TimeSpan.FromMinutes(2);
 
 
         // values / functions only for the simulator internally
-        public ushort ConvertToMaximumSlots(ushort maximumAircraftPerHours) => (ushort)(maximumAircraftPerHours * DepartureTimeWindow.TotalHours);
+        public void ReCalculateMaximumThroughputPointSlots()
+        {
+            foreach (var airport in Airports) CalculateMaximumThroughputPointSlots(airport);
+            foreach (var waypoint in Waypoints) CalculateMaximumThroughputPointSlots(waypoint);
+            foreach (var routeSegment in RouteSegments) CalculateMaximumThroughputPointSlots(routeSegment);
+            foreach (var sector in Sectors) CalculateMaximumThroughputPointSlots(sector);
+        }
+        private void CalculateMaximumThroughputPointSlots(ThroughputPoint throughputPoint)
+        {
+            throughputPoint.MaximumSlots = (ushort)(throughputPoint.MaximumAircraftPerHour * DepartureTimeWindow.TotalHours);
+        }
     }
-
-    public enum RouteSegmentType { AMAS, EMEA, NAT }
 
 
     public abstract class ThroughputPoint
     {
         // values coming from the database
-        public string Identifier { get; set; } // for example SPESA or EDDF or "PORTI_BOS_1", or oceanic track "M"
+        public string Identifier { get; set; } // for example SPESA or EDDF or "PORTI_BOS_1", or oceanic track "M" or "EHAA" for sectors
 
-        public ushort MaximumAircraftPerHour { get; set; } = 20; // default for waypoints and route segments, airports will override this
+        public ushort MaximumAircraftPerHour { get; set; } = 20; // default for waypoints and route segments, airports and sectors will override this
+        public ushort MaximumSlots { get; set; }
+
 
         // values populated by the simulator
         public ushort SlotsAllocated { get; set; }
+        public DateTime SimulationAnalysisStartTime { get; set; } // for example 12z at the given date with graphical resolution of 10 minutes...
+        public List<Slot> SlotsAnalysisFrames { get; set; } // if first element is at 12z, second at 1202z, third at 1204z, etc...
 
 
         // values / functions only for the simulator internally
-        public ushort MaximumSlots { get; set; }
-
         [NotMapped]
         public int SlotsStillAvailable => MaximumSlots - SlotsAllocated;
 
@@ -61,17 +79,11 @@ namespace CTPSimulator
         public bool AreSlotsStillAvailable => SlotsAllocated < MaximumSlots;
     }
 
-    public class Location : ThroughputPoint // for waypoint or airport
+    public class Location : ThroughputPoint // waypoint or airport
     {
         // values coming from the database
         public double Latitude { get; set; }
         public double Longitude { get; set; }
-
-        // values populated by the simulator
-        public DateTime SimulationAnalysisStartTime { get; set; } // for example 12z at the given date with graphical resolution of 10 minutes...
-        public List<Slot> SlotsAnalysisFrames { get; set; } // if first element is at 12z, second at 1202z, third at 1204z, etc...
-
-        // values / functions only for the simulator internally
     }
 
     public class Airport : Location
@@ -81,8 +93,9 @@ namespace CTPSimulator
 
         public ushort NumberOfVotes { get; set; }
 
+
         [NotMapped]
-        public List<RouteSegment> ConnectingPrimaryRouteSegments { get; set; } = new ();
+        public List<RouteSegment> ConnectingPrimaryRouteSegments { get; set; } = new();
 
         [NotMapped]
         public List<RouteSegment> ConnectingSecondaryRouteSegments { get; set; } = new();
@@ -92,8 +105,19 @@ namespace CTPSimulator
     {
         // values coming from the database
         public string RouteString { get; set; } // for example "MARUN Y150 TOLGI SAS P605 NOLGO" or "RESNO 5520N 5530N 5540N 5550N LOMSI"
-        public RouteSegmentType Type { get; set; }
+        public string RouteSegmentGroup { get; set; } // for example NAT or EMEA
+        public List<string> RouteSegmentTags { get; set; }
+        public List<Sector> ProvidedFacilityProgression { get; set; }
         public List<Location> Locations { get; set; } = new(); // can be waypoints or airports
+    }
+
+    public class Sector : ThroughputPoint
+    {
+        public double MaxLatitude { get; set; }
+        public double MinLatitude { get; set; }
+        public double MaxLongitude { get; set; }
+        public double MinLongitude { get; set; }
+        public double[,] Coordinates { get; set; }
     }
 
     public class Slot
@@ -108,7 +132,7 @@ namespace CTPSimulator
         public Airport ArrivalAirport { get; set; }
 
 
-        // a bunch of values must be stored that are outside the scope of my simulator, like
+        // a bunch of values must be stored that are outside the scope of the simulator, like
         // CID:
         // Aircraft Type:
         // ...

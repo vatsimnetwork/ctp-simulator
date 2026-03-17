@@ -15,10 +15,11 @@ namespace CTPSimulatorTestingApp
             await SlotDistributionCreator.CreateSlotDistribution(vatsimEvent);
             stopWatch.Stop();
 
+            // display the results
             var table = new ConsoleTable("Departures", "NAT Tracks", "Arrivals");
             table.Options.EnableCount = false;
 
-            var natSegments = vatsimEvent.RouteSegments.Where(r => r.Type == RouteSegmentType.NAT).ToList();
+            var natSegments = vatsimEvent.RouteSegments.Where(r => r.RouteSegmentGroup == "NAT").ToList();
             int rows = Math.Max(Math.Max(vatsimEvent.DepartureAirports.Count, natSegments.Count), vatsimEvent.ArrivalAirports.Count);
             for (int i = 0; i < rows; i++)
             {
@@ -33,6 +34,21 @@ namespace CTPSimulatorTestingApp
                 $"{natSegments.Sum(sr => sr.SlotsAllocated)} / {natSegments.Sum(sr => sr.MaximumSlots)}",
                 $"{vatsimEvent.ArrivalAirports.Sum(aa => aa.SlotsAllocated)} / {vatsimEvent.ArrivalAirports.Sum(aa => aa.MaximumSlots) }");
 
+            Console.WriteLine(table.ToString());
+
+            // display departure / arrival slots
+            table = new ConsoleTable([string.Empty, .. vatsimEvent.ArrivalAirports.Select(da => da.Identifier)]);
+            table.Options.EnableCount = false;
+
+            foreach (var departureAirport in vatsimEvent.DepartureAirports)
+            {
+                List<string> rowContent = [departureAirport.Identifier];
+                foreach (var arrivalAirport in vatsimEvent.ArrivalAirports)
+                {
+                    rowContent.Add(vatsimEvent.Slots.Count(s => s.DepartureAirport == departureAirport && s.ArrivalAirport == arrivalAirport).ToString());
+                }
+                table.AddRow(rowContent.ToArray());
+            }
             Console.WriteLine(table.ToString());
 
             Console.WriteLine($"Calculation took {stopWatch.ElapsedMilliseconds}ms");
