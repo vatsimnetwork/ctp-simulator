@@ -54,7 +54,7 @@ namespace CTPSimulator
                     r => airport.ConnectingPrimaryRouteSegments.Exists(tr => tr.Locations.First() == r.Locations.Last())).ToList();
             }
 
-            if (vatsimEvent.CalculationOptions.RecalculateMaximumAirportSlots) vatsimEvent.ReCalculateMaximumThroughputPointSlots();
+            if (vatsimEvent.CalculationParameters.RecalculateMaximumAirportSlots) vatsimEvent.ReCalculateMaximumThroughputPointSlots();
 
             while (true)
             {
@@ -81,15 +81,15 @@ namespace CTPSimulator
                 if (choices.Count == 0) break;
 
                 SlotChoice choice;
-                if (vatsimEvent.CalculationOptions.IntendedSlotGenerationMode == SimulatorCalculationOptions.SlotGenerationMode.MaximizeSlots)
+                if (vatsimEvent.CalculationParameters.IntendedSlotGenerationMode == SimulatorCalculationParameters.SlotGenerationMode.MaximizeSlots)
                 {
                     choice = choices.OrderBy(c => c.PossiblePaths).ThenByDescending(c => c.CombinedSlotsAvailable).ThenByDescending(c => c.CombinedVotes).First();
                 }
-                else if (vatsimEvent.CalculationOptions.IntendedSlotGenerationMode == SimulatorCalculationOptions.SlotGenerationMode.Random)
+                else if (vatsimEvent.CalculationParameters.IntendedSlotGenerationMode == SimulatorCalculationParameters.SlotGenerationMode.Random)
                 {
                     choice = choices.PickOne();
                 }
-                else throw new NotImplementedException($"SlotGenerationMode {vatsimEvent.CalculationOptions.IntendedSlotGenerationMode} not implemented.");
+                else throw new NotImplementedException($"SlotGenerationMode {vatsimEvent.CalculationParameters.IntendedSlotGenerationMode} not implemented.");
 
                 choice.DepartureAirport.SlotsAllocated++;
                 choice.RouteSegment.SlotsAllocated++;
