@@ -3,7 +3,7 @@ using CTPSimulator;
 using System.Diagnostics;
 using System.Reflection.PortableExecutable;
 
-namespace CTPSimulatorTestingApp
+namespace CTPSimulatorTester
 {
     internal class Program
     {

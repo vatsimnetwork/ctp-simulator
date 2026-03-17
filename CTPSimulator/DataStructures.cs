@@ -14,12 +14,11 @@ namespace CTPSimulator
         public uint RouteRevision { get; set; }
         public uint SlotRevision { get; set; }
 
-
-        public DateOnly SynchronizationDate { get; set; }
-        public double SynchronizationLongitude { get; set; } = -30;
+        public DateOnly Date { get; set; }
         public TimeSpan DepartureTimeWindow { get; set; } = TimeSpan.FromHours(3); // how long will departure airports depart for?
 
-        public SimulatorCalculationOptions CalculationOptions { get; set; } = new();
+
+        public SimulatorCalculationParameters CalculationParameters { get; set; } = new();
 
 
         // througput points
@@ -38,7 +37,6 @@ namespace CTPSimulator
 
 
         public List<Slot> Slots { get; set; } = new();
-        public TimeSpan SimulationAnalysisResolution { get; set; } = TimeSpan.FromMinutes(2);
 
 
         // values / functions only for the simulator internally

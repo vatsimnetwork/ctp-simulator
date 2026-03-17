@@ -1,4 +1,4 @@
 <Solution>
   <Project Path="CTPSimulator/CTPSimulator.csproj" Id="a68bbdae-534d-4987-99be-e621689ad162" />
-  <Project Path="CTPSimulatorTestingApp/CTPSimulatorTestingApp.csproj" Id="84b8f6fb-1128-4866-a9c6-6cf8e534455a" />
+  <Project Path="CTPSimulatorTester/CTPSimulatorTester.csproj" Id="84b8f6fb-1128-4866-a9c6-6cf8e534455a" />
 </Solution>
