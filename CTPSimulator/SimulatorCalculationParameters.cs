@@ -32,13 +32,15 @@ namespace CTPSimulator
 
         // SIMULATION
         public double DepartureTimeWindowOffsetSynchronizationLongitude { get; set; } = -30;
-        public TimeSpan SimulationAnalysisResolution { get; set; } = TimeSpan.FromMinutes(2);
+        public uint SimulationAnalysisResolutionInMinutes { get; set; } = 2;
 
         /// <summary>Should the simulation try to use the weather forecast data of the actual event day (only available about 16 days in advance)?
         /// Warning: Initially loading the forecast data might take a few minutes.
         /// If false or if no forecast data is available, the data set will fall back to statistical average values.</summary>
         public bool ShouldSimulationUseActualWeatherForecastData { get; set; }
 
+        /// <summary>Should we use an ellipsoid earth model for more precise but more performance-hungry distance calculations?</summary>
+        public bool HighSimulationAccuracy { get; set; }
 
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
         public string SimulationOutputCommentary { get; set; }
