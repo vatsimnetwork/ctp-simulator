@@ -112,6 +112,11 @@ namespace CTPSimulator
         public List<string> RouteSegmentTags { get; set; } = new();
         public List<Sector> ProvidedFacilityProgression { get; set; } = new();
         public List<Location> Locations { get; set; } = new(); // can be waypoints or airports
+
+        public void CheckValidity()
+        {
+            if (Locations.Count < 2) throw new ArgumentException($"Route segment {Identifier} has invalid number of Locations (a minimum of 2 is required).");
+        }
     }
 
     public class Sector : ThroughputPoint
