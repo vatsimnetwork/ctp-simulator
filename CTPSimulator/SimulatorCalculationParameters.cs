@@ -27,7 +27,7 @@ namespace CTPSimulator
         public SlotGenerationMode IntendedSlotGenerationMode { get; set; } = SlotGenerationMode.MaximizeSlots;
 
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
-        public string SlotGenerationOutputCommentary { get; set; }
+        public string SlotGenerationOutputCommentary { get; set; } = string.Empty;
 
 
         // SIMULATION
@@ -41,6 +41,6 @@ namespace CTPSimulator
 
 
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
-        public string SimulationOutputCommentary { get; set; }
+        public string SimulationOutputCommentary { get; set; } = string.Empty;
     }
 }
