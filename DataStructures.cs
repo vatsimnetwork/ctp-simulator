@@ -9,7 +9,7 @@ namespace CTPSimulator
     public class VATSIMEvent
     {
         [Key]
-        public int Id { get; set; }
+        public uint Id { get; set; }
 
         // values coming from the database
         public string Title { get; set; } = string.Empty; // for example CTP 26E
@@ -60,7 +60,7 @@ namespace CTPSimulator
     public abstract class ThroughputPoint
     {
         [Key]
-        public int Id { get; set; }
+        public uint Id { get; set; }
         // values coming from the database
         public string Identifier { get; set; } = string.Empty; // for example SPESA or EDDF or "PORTI_BOS_1", or oceanic track "M" or "EHAA" for sectors
 
@@ -131,7 +131,7 @@ namespace CTPSimulator
     public class Slot
     {
         [Key]
-        public int Id { get; set; }
+        public uint Id { get; set; }
 
         // values populated by the simulator
         public List<RouteSegment> RouteSegments { get; set; } = new();
@@ -146,6 +146,7 @@ namespace CTPSimulator
         // a bunch of values must be stored that are outside the scope of the simulator, like
         // CID:
         // Aircraft Type:
+        // ...
         // ...
     }
 }
