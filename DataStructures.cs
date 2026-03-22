@@ -1,15 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text;
 
 namespace CTPSimulator
 {
-
     public class VATSIMEvent
     {
+        [Key]
+        public int Id { get; set; }
+
         // values coming from the database
-        public string Title { get; set; } // for example CTP 26E
+        public string Title { get; set; } = string.Empty; // for example CTP 26E
 
         public uint RouteRevision { get; set; }
         public uint SlotRevision { get; set; }
@@ -56,8 +59,10 @@ namespace CTPSimulator
 
     public abstract class ThroughputPoint
     {
+        [Key]
+        public int Id { get; set; }
         // values coming from the database
-        public string Identifier { get; set; } // for example SPESA or EDDF or "PORTI_BOS_1", or oceanic track "M" or "EHAA" for sectors
+        public string Identifier { get; set; } = string.Empty; // for example SPESA or EDDF or "PORTI_BOS_1", or oceanic track "M" or "EHAA" for sectors
 
         public ushort MaximumAircraftPerHour { get; set; } = 20; // default for waypoints and route segments, airports and sectors will override this
         public ushort MaximumSlots { get; set; }
@@ -66,7 +71,7 @@ namespace CTPSimulator
         // values populated by the simulator
         public ushort SlotsAllocated { get; set; }
         public DateTime SimulationAnalysisStartTime { get; set; } // for example 12z at the given date with graphical resolution of 10 minutes...
-        public List<Slot> SlotsAnalysisFrames { get; set; } // if first element is at 12z, second at 1202z, third at 1204z, etc...
+        public List<Slot> SlotsAnalysisFrames { get; set; } = new(); // if first element is at 12z, second at 1202z, third at 1204z, etc...
 
 
         // values / functions only for the simulator internally
@@ -102,10 +107,10 @@ namespace CTPSimulator
     public class RouteSegment : ThroughputPoint
     {
         // values coming from the database
-        public string RouteString { get; set; } // for example "MARUN Y150 TOLGI SAS P605 NOLGO" or "RESNO 5520N 5530N 5540N 5550N LOMSI"
-        public string RouteSegmentGroup { get; set; } // for example NAT or EMEA
-        public List<string> RouteSegmentTags { get; set; }
-        public List<Sector> ProvidedFacilityProgression { get; set; }
+        public string RouteString { get; set; } = string.Empty; // for example "MARUN Y150 TOLGI SAS P605 NOLGO" or "RESNO 5520N 5530N 5540N 5550N LOMSI"
+        public string RouteSegmentGroup { get; set; } = string.Empty; // for example NAT or EMEA
+        public List<string> RouteSegmentTags { get; set; } = new();
+        public List<Sector> ProvidedFacilityProgression { get; set; } = new();
         public List<Location> Locations { get; set; } = new(); // can be waypoints or airports
 
         public void CheckValidity()
@@ -125,6 +130,9 @@ namespace CTPSimulator
 
     public class Slot
     {
+        [Key]
+        public int Id { get; set; }
+
         // values populated by the simulator
         public List<RouteSegment> RouteSegments { get; set; } = new();
 
