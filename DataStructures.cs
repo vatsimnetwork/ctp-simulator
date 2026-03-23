@@ -113,6 +113,11 @@ namespace CTPSimulator
         public List<Sector> ProvidedFacilityProgression { get; set; } = new();
         public List<Location> Locations { get; set; } = new(); // can be waypoints or airports
 
+        /// <summary>
+        /// During which RouteRevision was this route last modified?
+        /// </summary>
+        public uint RouteRevision { get; set; }
+
         public void CheckValidity()
         {
             if (Locations.Count < 2) throw new ArgumentException($"Route segment {Identifier} has invalid number of Locations (a minimum of 2 is required).");
