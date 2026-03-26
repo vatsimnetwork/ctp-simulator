@@ -46,12 +46,26 @@ namespace CTPSimulator
             LatestRoutes,
             RouteAverage
         }
-
         public DepartureTimeWindowOffsetsCalculationMode IntendedDepartureTimeWindowOffsetsCalculationMode { get; set; } = DepartureTimeWindowOffsetsCalculationMode.EarliestRoutes;
 
         public TimeOnly DepartureTimeWindowOffsetSynchronizationTimeOfDay { get; set; } = new TimeOnly(16, 0);
 
         public bool CalculateThroughputDataOnlyForManuallyProvidedSectors { get; set; } = true;
+
+
+        public enum WaypointThroughputCalculationMode
+        {
+            None,
+            FirstWaypointsOfNATRouteSegmentsOnly,
+            AllWaypoints
+        }
+
+        public WaypointThroughputCalculationMode IntendedWaypointThroughputCalculationMode { get; set; } = WaypointThroughputCalculationMode.FirstWaypointsOfNATRouteSegmentsOnly;
+
+
+        public double ThresholdToCheckIfAirplaneIsCountedAtWaypointInNm = 5d;
+
+
 
         public double CalculationFallbackGroundSpeed { get; set; } = 300d;
 

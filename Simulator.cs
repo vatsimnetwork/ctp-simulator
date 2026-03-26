@@ -142,9 +142,10 @@ namespace CTPSimulator
                         currentTime += timeSlice;
                         currentPosition.Move(nextWaypoint.Item2, new Distance(timeSliceDistance, DistanceType.NauticalMiles), earthShape);
 
-                        // log this into sectors
+                        // we are not in synchronization mode (so log the throughput data)
                         if (!synchronizationMode)
                         {
+                            // log this into sectors
                             List<Sector> sectorsToBeChecked;
                             if (vatsimEvent.CalculationParameters.CalculateThroughputDataOnlyForManuallyProvidedSectors)
                             {
@@ -178,6 +179,30 @@ namespace CTPSimulator
 
                             // log route element
                             LogSlotInThroughputPoint(nextWaypoint.Item3, minuteOffset, slot);
+
+                            // check OEPs
+                            if (vatsimEvent.CalculationParameters.IntendedWaypointThroughputCalculationMode != SimulatorCalculationParameters.WaypointThroughputCalculationMode.None)
+                            {
+                                List<Location> waypointsToCheck;
+                                if (vatsimEvent.CalculationParameters.IntendedWaypointThroughputCalculationMode == SimulatorCalculationParameters.WaypointThroughputCalculationMode.FirstWaypointsOfNATRouteSegmentsOnly)
+                                {
+                                    waypointsToCheck = vatsimEvent.RouteSegments.Where(rs => rs.RouteSegmentGroup == "NAT").Select(rs => rs.Locations.First()).ToList();
+                                }
+                                else if (vatsimEvent.CalculationParameters.IntendedWaypointThroughputCalculationMode == SimulatorCalculationParameters.WaypointThroughputCalculationMode.AllWaypoints)
+                                {
+                                    waypointsToCheck = vatsimEvent.Waypoints;
+                                }
+                                else throw new NotImplementedException($"WaypointThroughputCalculationMode {vatsimEvent.CalculationParameters.IntendedWaypointThroughputCalculationMode} not implemented.");
+
+                                foreach (var waypoint in waypointsToCheck)
+                                {
+                                    if (CheckIfPositionIsCloseToAnotherPosition(currentPosition, waypoint.Latitude, waypoint.Longitude, 
+                                        earthShape, vatsimEvent.CalculationParameters.ThresholdToCheckIfAirplaneIsCountedAtWaypointInNm))
+                                    {
+                                        LogSlotInThroughputPoint(waypoint, minuteOffset, slot);
+                                    }
+                                }
+                            }
                         }
                         else // check sync longitude
                         {
@@ -251,6 +276,15 @@ namespace CTPSimulator
                 }
             }
             return false;
+        }
+
+
+        const double SmallestLatitudeDegreeDistanceInNm = 59.701404;
+        private static bool CheckIfPositionIsCloseToAnotherPosition(Coordinate coordinate1, double coordinate2Lat, double coordinate2Lon, Shape earthShape, double thresholdInNm)
+        {
+            if (Math.Abs(coordinate1.Latitude.DecimalDegree - coordinate2Lat) * SmallestLatitudeDegreeDistanceInNm >=
+                thresholdInNm) return false;
+            return coordinate1.Get_Distance_From_Coordinate(new Coordinate(coordinate2Lat, coordinate2Lon, new EagerLoad(false)), earthShape).NauticalMiles >= thresholdInNm;
         }
 
         private static bool CoordinatesAreInPolygon(double lat, double lon, double[,] polygonCoordinates)
