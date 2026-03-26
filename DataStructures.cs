@@ -122,6 +122,8 @@ namespace CTPSimulator
         // values coming from the database
         public string RouteString { get; set; } = string.Empty; // for example "MARUN Y150 TOLGI SAS P605 NOLGO" or "RESNO 5520N 5530N 5540N 5550N LOMSI"
         public string RouteSegmentGroup { get; set; } = string.Empty; // for example NAT or EMEA
+        public string Color { get; set; } = string.Empty;
+        public bool Enabled { get; set; } = true;
         public List<string> RouteSegmentTags { get; set; } = new();
         public string Color { get; set; } = string.Empty;
         public bool Enabled { get; set; } = true;
