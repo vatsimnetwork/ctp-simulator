@@ -27,7 +27,7 @@ namespace CTPSimulator
         public SlotGenerationMode IntendedSlotGenerationMode { get; set; } = SlotGenerationMode.MaximizeSlots;
 
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
-        public string SlotGenerationOutputCommentary { get; set; }
+        public string SlotGenerationOutputCommentary { get; set; } = string.Empty;
 
 
         // SIMULATION
@@ -39,10 +39,40 @@ namespace CTPSimulator
         /// If false or if no forecast data is available, the data set will fall back to statistical average values.</summary>
         public bool ShouldSimulationUseActualWeatherForecastData { get; set; }
 
+        public enum DepartureTimeWindowOffsetsCalculationMode
+        {
+            None,
+            EarliestRoutes,
+            LatestRoutes,
+            RouteAverage
+        }
+        public DepartureTimeWindowOffsetsCalculationMode IntendedDepartureTimeWindowOffsetsCalculationMode { get; set; } = DepartureTimeWindowOffsetsCalculationMode.EarliestRoutes;
+
+        public TimeOnly DepartureTimeWindowOffsetSynchronizationTimeOfDay { get; set; } = new TimeOnly(16, 0);
+
+        public bool CalculateThroughputDataOnlyForManuallyProvidedSectors { get; set; } = true;
+
+
+        public enum WaypointThroughputCalculationMode
+        {
+            None,
+            FirstWaypointsOfNATRouteSegmentsOnly,
+            AllWaypoints
+        }
+
+        public WaypointThroughputCalculationMode IntendedWaypointThroughputCalculationMode { get; set; } = WaypointThroughputCalculationMode.FirstWaypointsOfNATRouteSegmentsOnly;
+
+
+        public double ThresholdToCheckIfAirplaneIsCountedAtWaypointInNm = 5d;
+
+
+
+        public double CalculationFallbackGroundSpeed { get; set; } = 300d;
+
         /// <summary>Should we use an ellipsoid earth model for more precise but more performance-hungry distance calculations?</summary>
         public bool HighSimulationAccuracy { get; set; }
 
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
-        public string SimulationOutputCommentary { get; set; }
+        public string SimulationOutputCommentary { get; set; } = string.Empty;
     }
 }

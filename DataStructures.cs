@@ -54,6 +54,21 @@ namespace CTPSimulator
         {
             throughputPoint.MaximumSlots = (ushort)(throughputPoint.MaximumAircraftPerHour * DepartureTimeWindow.TotalHours);
         }
+
+        [NotMapped]
+        private DateTime? _synchronizationDateTime;
+        [NotMapped]
+        public DateTime SynchronizationDateTime
+        {
+            get
+            {
+                if (!_synchronizationDateTime.HasValue)
+                {
+                    _synchronizationDateTime = Date.ToDateTime(CalculationParameters.DepartureTimeWindowOffsetSynchronizationTimeOfDay);
+                }
+                return _synchronizationDateTime.Value;
+            }
+        }
     }
 
 
@@ -70,9 +85,7 @@ namespace CTPSimulator
 
         // values populated by the simulator
         public ushort SlotsAllocated { get; set; }
-        public DateTime SimulationAnalysisStartTime { get; set; } // for example 12z at the given date with graphical resolution of 10 minutes...
-        public List<Slot> SlotsAnalysisFrames { get; set; } = new(); // if first element is at 12z, second at 1202z, third at 1204z, etc...
-
+        public Dictionary<int, List<Slot>> SlotsAnalysisFramesViaMinutesFromSynchronizationTime { get; set; } = new();
 
         // values / functions only for the simulator internally
         [NotMapped]
@@ -110,6 +123,8 @@ namespace CTPSimulator
         public string RouteString { get; set; } = string.Empty; // for example "MARUN Y150 TOLGI SAS P605 NOLGO" or "RESNO 5520N 5530N 5540N 5550N LOMSI"
         public string RouteSegmentGroup { get; set; } = string.Empty; // for example NAT or EMEA
         public List<string> RouteSegmentTags { get; set; } = new();
+        public string Color { get; set; } = string.Empty;
+        public bool Enabled { get; set; } = true;
         public List<Sector> ProvidedFacilityProgression { get; set; } = new();
         public List<Location> Locations { get; set; } = new(); // can be waypoints or airports
 
@@ -126,6 +141,13 @@ namespace CTPSimulator
 
     public class Sector : ThroughputPoint
     {
+        public List<SectorBoundary> SectorBoundaries { get; set; } = new List<SectorBoundary>();
+    }
+
+    public class SectorBoundary
+    {
+        [Key]
+        public uint Id { get; set; }
         public double MaxLatitude { get; set; }
         public double MinLatitude { get; set; }
         public double MaxLongitude { get; set; }
@@ -147,6 +169,8 @@ namespace CTPSimulator
         public Airport DepartureAirport { get; set; }
         public Airport ArrivalAirport { get; set; }
 
+        [NotMapped]
+        public TimeSpan TimeUntilSynchronizationLongitudeCrossing { get; set; }
 
         // a bunch of values must be stored that are outside the scope of the simulator, like
         // CID:
