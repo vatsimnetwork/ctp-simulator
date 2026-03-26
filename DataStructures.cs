@@ -125,8 +125,6 @@ namespace CTPSimulator
         public string Color { get; set; } = string.Empty;
         public bool Enabled { get; set; } = true;
         public List<string> RouteSegmentTags { get; set; } = new();
-        public string Color { get; set; } = string.Empty;
-        public bool Enabled { get; set; } = true;
         public List<Sector> ProvidedFacilityProgression { get; set; } = new();
         public List<Location> Locations { get; set; } = new(); // can be waypoints or airports
 
