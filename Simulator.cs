@@ -180,7 +180,7 @@ namespace CTPSimulator
                             // log route element
                             LogSlotInThroughputPoint(nextWaypoint.Item3, minuteOffset, slot);
 
-                            // check OEPs
+                            // check waypoints
                             if (vatsimEvent.CalculationParameters.IntendedWaypointThroughputCalculationMode != SimulatorCalculationParameters.WaypointThroughputCalculationMode.None)
                             {
                                 List<Location> waypointsToCheck;
