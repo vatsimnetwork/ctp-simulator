@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -8,7 +9,6 @@ namespace CTPSimulator
 {
     public class VATSIMEvent
     {
-        [Key]
         public uint Id { get; set; }
 
         // values coming from the database
@@ -17,7 +17,10 @@ namespace CTPSimulator
         public uint RouteRevision { get; set; }
         public uint SlotRevision { get; set; }
 
+        [JsonIgnore]
         public DateOnly Date { get; set; }
+
+        [JsonIgnore]
         public TimeSpan DepartureTimeWindow { get; set; } = TimeSpan.FromHours(3); // how long will departure airports depart for?
 
 
@@ -26,16 +29,19 @@ namespace CTPSimulator
 
         // througput points
         public List<Airport> Airports { get; set; } = new();
+
         public List<Location> Waypoints { get; set; } = new();
+
         public List<RouteSegment> RouteSegments { get; set; } = new();
+
         public List<Sector> Sectors { get; set; } = new();
 
 
         // values populated by the simulator
-        [NotMapped]
+        [JsonIgnore]
         public List<Airport> DepartureAirports { get; set; } = new();
 
-        [NotMapped]
+        [JsonIgnore]
         public List<Airport> ArrivalAirports { get; set; } = new();
 
 
@@ -55,9 +61,9 @@ namespace CTPSimulator
             throughputPoint.MaximumSlots = (ushort)(throughputPoint.MaximumAircraftPerHour * DepartureTimeWindow.TotalHours);
         }
 
-        [NotMapped]
+        [JsonIgnore]
         private DateTime? _synchronizationDateTime;
-        [NotMapped]
+        [JsonIgnore]
         public DateTime SynchronizationDateTime
         {
             get
@@ -74,46 +80,54 @@ namespace CTPSimulator
 
     public abstract class ThroughputPoint
     {
-        [Key]
-        public uint Id { get; set; }
         // values coming from the database
+        public uint Id { get; set; }
+
         public string Identifier { get; set; } = string.Empty; // for example SPESA or EDDF or "PORTI_BOS_1", or oceanic track "M" or "EHAA" for sectors
 
+        [JsonIgnore]
         public ushort MaximumAircraftPerHour { get; set; } = 20; // default for waypoints and route segments, airports and sectors will override this
         public ushort MaximumSlots { get; set; }
 
 
         // values populated by the simulator
         public ushort SlotsAllocated { get; set; }
-        public Dictionary<int, List<Slot>> SlotsAnalysisFramesViaMinutesFromSynchronizationTime { get; set; } = new();
+
+        [JsonIgnore]
+        public Dictionary<int, List<Slot>> SlotsAnalysisFramesViaMinutesFromSynchronizationTimeInternal { get; set; } = new();
+
+        public Dictionary<int, List<uint>> SlotsAnalysisFramesViaMinutesFromSynchronizationTime { get; set; } = new();
 
         // values / functions only for the simulator internally
-        [NotMapped]
+        [JsonIgnore]
         public int SlotsStillAvailable => MaximumSlots - SlotsAllocated;
 
-        [NotMapped]
+        [JsonIgnore]
         public bool AreSlotsStillAvailable => SlotsAllocated < MaximumSlots;
     }
 
     public class Location : ThroughputPoint // waypoint or airport
     {
         // values coming from the database
+        [JsonIgnore]
         public double Latitude { get; set; }
+
+        [JsonIgnore]
         public double Longitude { get; set; }
     }
 
     public class Airport : Location
     {
+        [JsonIgnore]
+        public ushort NumberOfVotes { get; set; }
+
         // values populated by the simulator
         public DateTime DepartureTimeWindowStart { get; set; }
 
-        public ushort NumberOfVotes { get; set; }
-
-
-        [NotMapped]
+        [JsonIgnore]
         public List<RouteSegment> ConnectingPrimaryRouteSegments { get; set; } = new();
 
-        [NotMapped]
+        [JsonIgnore]
         public List<RouteSegment> ConnectingSecondaryRouteSegments { get; set; } = new();
     }
 
@@ -121,13 +135,26 @@ namespace CTPSimulator
     {
         // values coming from the database
         public string RouteString { get; set; } = string.Empty; // for example "MARUN Y150 TOLGI SAS P605 NOLGO" or "RESNO 5520N 5530N 5540N 5550N LOMSI"
+
+        [JsonIgnore]
         public string RouteSegmentGroup { get; set; } = string.Empty; // for example NAT or EMEA
+        
+        [JsonIgnore]
         public string Color { get; set; } = string.Empty;
+
+        [JsonIgnore]
         public bool Enabled { get; set; } = true;
+
+        [JsonIgnore]
         public List<string> RouteSegmentTags { get; set; } = new();
+
+        [JsonIgnore]
         public List<Sector> ProvidedFacilityProgression { get; set; } = new();
+
+        [JsonIgnore]
         public List<Location> Locations { get; set; } = new(); // can be waypoints or airports
 
+        [JsonIgnore]
         /// <summary>
         /// During which RouteRevision was this route last modified?
         /// </summary>
@@ -141,12 +168,12 @@ namespace CTPSimulator
 
     public class Sector : ThroughputPoint
     {
+        [JsonIgnore]
         public List<SectorBoundary> SectorBoundaries { get; set; } = new List<SectorBoundary>();
     }
 
     public class SectorBoundary
     {
-        [Key]
         public uint Id { get; set; }
         public double MaxLatitude { get; set; }
         public double MinLatitude { get; set; }
@@ -157,19 +184,28 @@ namespace CTPSimulator
 
     public class Slot
     {
-        [Key]
         public uint Id { get; set; }
 
         // values populated by the simulator
-        public List<RouteSegment> RouteSegments { get; set; } = new();
+        [JsonIgnore]
+        public List<RouteSegment> RouteSegmentsInternal { get; set; } = new();
+
+        public List<uint> RouteSegments { get; set; } = new();
 
         public DateTime DepartureTime { get; set; }
         public DateTime ProjectedArrivalTime { get; set; }
 
-        public Airport DepartureAirport { get; set; }
-        public Airport ArrivalAirport { get; set; }
+        [JsonIgnore]
+        public Airport DepartureAirportInternal { get; set; }
 
-        [NotMapped]
+        public uint DepartureAirport { get; set; }
+
+        [JsonIgnore]
+        public Airport ArrivalAirportInternal { get; set; }
+
+        public uint ArrivalAirport { get; set; }
+
+        [JsonIgnore]
         public TimeSpan TimeUntilSynchronizationLongitudeCrossing { get; set; }
 
         // a bunch of values must be stored that are outside the scope of the simulator, like

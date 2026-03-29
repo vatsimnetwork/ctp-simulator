@@ -19,13 +19,13 @@ namespace CTPSimulator
                 foreach (Slot slot in vatsimEvent.Slots)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (!slotsWithUniqueRoutings.TryGetValue(slot.DepartureAirport, out var airportSlotSets))
+                    if (!slotsWithUniqueRoutings.TryGetValue(slot.DepartureAirportInternal, out var airportSlotSets))
                     {
-                        slotsWithUniqueRoutings[slot.DepartureAirport] = [[slot]];
+                        slotsWithUniqueRoutings[slot.DepartureAirportInternal] = [[slot]];
                     }
                     else
                     {
-                        var uniqueList = airportSlotSets.Find(ass => ass.First().RouteSegments.SequenceEqual(slot.RouteSegments));
+                        var uniqueList = airportSlotSets.Find(ass => ass.First().RouteSegmentsInternal.SequenceEqual(slot.RouteSegmentsInternal));
                         if (uniqueList == null) airportSlotSets.Add([slot]);
                         else uniqueList.Add(slot);
                     }
@@ -87,19 +87,19 @@ namespace CTPSimulator
         private static void SimulateSlot(VATSIMEvent vatsimEvent, DateTime departureTime, Slot slot, bool synchronizationMode, CancellationToken cancellationToken)
         {
             // check validity of data
-            if (slot.RouteSegments.Count == 0) throw new ArgumentException($"Invalid number of RouteSegments provided for a slot (a minimum of 1 is required).");
-            foreach (var routeSegment in slot.RouteSegments) routeSegment.CheckValidity();
+            if (slot.RouteSegmentsInternal.Count == 0) throw new ArgumentException($"Invalid number of RouteSegments provided for a slot (a minimum of 1 is required).");
+            foreach (var routeSegment in slot.RouteSegmentsInternal) routeSegment.CheckValidity();
 
-            Location origin = slot.RouteSegments.First().Locations.First();
+            Location origin = slot.RouteSegmentsInternal.First().Locations.First();
 
             // concat locations
-            List<(Location, Coordinate, RouteSegment)> locations = [(origin, new Coordinate(origin.Latitude, origin.Longitude, new EagerLoad(false)), slot.RouteSegments.First())];
-            for (int r = 0; r < slot.RouteSegments.Count; r++)
+            List<(Location, Coordinate, RouteSegment)> locations = [(origin, new Coordinate(origin.Latitude, origin.Longitude, new EagerLoad(false)), slot.RouteSegmentsInternal.First())];
+            for (int r = 0; r < slot.RouteSegmentsInternal.Count; r++)
             {
-                for (int l = 1; l < slot.RouteSegments[r].Locations.Count; l++)
+                for (int l = 1; l < slot.RouteSegmentsInternal[r].Locations.Count; l++)
                 {
-                    var location = slot.RouteSegments[r].Locations[l];
-                    locations.Add((location, new Coordinate(location.Latitude, location.Longitude, new EagerLoad(false)), slot.RouteSegments[r]));
+                    var location = slot.RouteSegmentsInternal[r].Locations[l];
+                    locations.Add((location, new Coordinate(location.Latitude, location.Longitude, new EagerLoad(false)), slot.RouteSegmentsInternal[r]));
                 }
             }
 
@@ -150,7 +150,7 @@ namespace CTPSimulator
                             if (vatsimEvent.CalculationParameters.CalculateThroughputDataOnlyForManuallyProvidedSectors)
                             {
                                 sectorsToBeChecked = new List<Sector>();
-                                foreach (RouteSegment routeSegment in slot.RouteSegments)
+                                foreach (RouteSegment routeSegment in slot.RouteSegmentsInternal)
                                 {
                                     foreach (Sector sector in routeSegment.ProvidedFacilityProgression)
                                     {
@@ -231,7 +231,7 @@ namespace CTPSimulator
                         {
                             slot.ProjectedArrivalTime = currentTime;
                             int minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
-                            LogSlotInThroughputPoint(slot.ArrivalAirport, minuteOffset, slot);
+                            LogSlotInThroughputPoint(slot.ArrivalAirportInternal, minuteOffset, slot);
                         }
 
                         break;
@@ -244,9 +244,9 @@ namespace CTPSimulator
 
         private static void LogSlotInThroughputPoint(ThroughputPoint point, int minuteOffset, Slot slot)
         {
-            if (!point.SlotsAnalysisFramesViaMinutesFromSynchronizationTime.TryGetValue(minuteOffset, out List<Slot> value))
+            if (!point.SlotsAnalysisFramesViaMinutesFromSynchronizationTimeInternal.TryGetValue(minuteOffset, out List<Slot> value))
             {
-                Dictionary<int, List<Slot>> slotsAnalysisFramesViaMinutesFromSynchronizationTime = point.SlotsAnalysisFramesViaMinutesFromSynchronizationTime;
+                Dictionary<int, List<Slot>> slotsAnalysisFramesViaMinutesFromSynchronizationTime = point.SlotsAnalysisFramesViaMinutesFromSynchronizationTimeInternal;
                 int num = 1;
                 List<Slot> list = new List<Slot>(num);
                 CollectionsMarshal.SetCount(list, num);

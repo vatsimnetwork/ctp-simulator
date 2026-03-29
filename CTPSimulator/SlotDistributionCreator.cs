@@ -56,6 +56,7 @@ namespace CTPSimulator
 
             if (vatsimEvent.CalculationParameters.RecalculateMaximumAirportSlots) vatsimEvent.ReCalculateMaximumThroughputPointSlots();
 
+            uint slotID = 0;
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -103,15 +104,17 @@ namespace CTPSimulator
 
                 vatsimEvent.Slots.Add(new Slot()
                 {
-                    DepartureAirport = choice.DepartureAirport,
-                    RouteSegments = new()
+                    Id = slotID,
+                    DepartureAirportInternal = choice.DepartureAirport,
+                    RouteSegmentsInternal = new()
                     {
                         firstRouteSegment, // airport to nat
                         choice.RouteSegment, // nat track
                         thirdRouteSegment // nat to airport
                     },
-                    ArrivalAirport = choice.ArrivalAirport
+                    ArrivalAirportInternal = choice.ArrivalAirport
                 });
+                slotID++;
             }
         }
     }
