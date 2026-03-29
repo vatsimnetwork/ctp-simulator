@@ -17,7 +17,7 @@ namespace CTPSimulatorContainer
             Sectors = await SectorParsing.LoadSectors();
 
             // start the webserver
-            using (var server = new WebServer()
+            using (var server = new WebServer("http://*:8080")
                 .WithModule(new ActionModule("/createSlotDistribution", HttpVerbs.Any, CreateSlotDistribution))
                 .WithModule(new ActionModule("/simulateEvent", HttpVerbs.Any, SimulateEvent)))
             {
