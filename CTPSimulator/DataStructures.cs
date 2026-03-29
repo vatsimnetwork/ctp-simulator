@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text;
+using static CTPSimulator.JsonWrapping;
 
 namespace CTPSimulator
 {
@@ -17,10 +18,10 @@ namespace CTPSimulator
         public uint RouteRevision { get; set; }
         public uint SlotRevision { get; set; }
 
-        [JsonIgnore]
+        [JsonIgnoreSerialization]
         public DateOnly Date { get; set; }
 
-        [JsonIgnore]
+        [JsonIgnoreSerialization]
         public TimeSpan DepartureTimeWindow { get; set; } = TimeSpan.FromHours(3); // how long will departure airports depart for?
 
 
@@ -30,11 +31,23 @@ namespace CTPSimulator
         // througput points
         public List<Airport> Airports { get; set; } = new();
 
+        [JsonIgnore]
+        public Dictionary<uint, Airport> AirportsById = new();
+
         public List<Location> Waypoints { get; set; } = new();
+
+        [JsonIgnore]
+        public Dictionary<uint, Location> WaypointsById = new();
 
         public List<RouteSegment> RouteSegments { get; set; } = new();
 
+        [JsonIgnore]
+        public Dictionary<uint, RouteSegment> RouteSegmentsById = new();
+
         public List<Sector> Sectors { get; set; } = new();
+
+        [JsonIgnore]
+        public Dictionary<uint, Sector> SectorsById = new();
 
 
         // values populated by the simulator
@@ -85,8 +98,9 @@ namespace CTPSimulator
 
         public string Identifier { get; set; } = string.Empty; // for example SPESA or EDDF or "PORTI_BOS_1", or oceanic track "M" or "EHAA" for sectors
 
-        [JsonIgnore]
+        [JsonIgnoreSerialization]
         public ushort MaximumAircraftPerHour { get; set; } = 20; // default for waypoints and route segments, airports and sectors will override this
+       
         public ushort MaximumSlots { get; set; }
 
 
@@ -109,16 +123,16 @@ namespace CTPSimulator
     public class Location : ThroughputPoint // waypoint or airport
     {
         // values coming from the database
-        [JsonIgnore]
+        [JsonIgnoreSerialization]
         public double Latitude { get; set; }
 
-        [JsonIgnore]
+        [JsonIgnoreSerialization]
         public double Longitude { get; set; }
     }
 
     public class Airport : Location
     {
-        [JsonIgnore]
+        [JsonIgnoreSerialization]
         public ushort NumberOfVotes { get; set; }
 
         // values populated by the simulator
@@ -131,28 +145,37 @@ namespace CTPSimulator
         public List<RouteSegment> ConnectingSecondaryRouteSegments { get; set; } = new();
     }
 
+
+
+
     public class RouteSegment : ThroughputPoint
     {
         // values coming from the database
+        [JsonIgnoreSerialization]
         public string RouteString { get; set; } = string.Empty; // for example "MARUN Y150 TOLGI SAS P605 NOLGO" or "RESNO 5520N 5530N 5540N 5550N LOMSI"
 
-        [JsonIgnore]
+        [JsonIgnoreSerialization]
         public string RouteSegmentGroup { get; set; } = string.Empty; // for example NAT or EMEA
-        
-        [JsonIgnore]
+
+        [JsonIgnoreSerialization]
         public string Color { get; set; } = string.Empty;
 
-        [JsonIgnore]
+        [JsonIgnoreSerialization]
         public bool Enabled { get; set; } = true;
 
-        [JsonIgnore]
+        [JsonIgnoreSerialization]
         public List<string> RouteSegmentTags { get; set; } = new();
 
         [JsonIgnore]
-        public List<Sector> ProvidedFacilityProgression { get; set; } = new();
+        public List<Sector> ProvidedFacilityProgressionInternal { get; set; } = new();
+
+        public List<uint> ProvidedFacilityProgression { get; set; } = new();
 
         [JsonIgnore]
-        public List<Location> Locations { get; set; } = new(); // can be waypoints or airports
+        public List<Location> LocationsInternal { get; set; } = new(); // can be waypoints or airports
+
+        [JsonIgnoreSerialization]
+        public List<uint> Locations { get; set; } = new();
 
         [JsonIgnore]
         /// <summary>
@@ -162,7 +185,7 @@ namespace CTPSimulator
 
         public void CheckValidity()
         {
-            if (Locations.Count < 2) throw new ArgumentException($"Route segment {Identifier} has invalid number of Locations (a minimum of 2 is required).");
+            if (LocationsInternal.Count < 2) throw new ArgumentException($"Route segment {Identifier} has invalid number of Locations (a minimum of 2 is required).");
         }
     }
 

@@ -1,4 +1,6 @@
 ﻿using CTPSimulator;
+using EmbedIO;
+using EmbedIO.Actions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Net;
@@ -7,61 +9,89 @@ namespace CTPSimulatorContainer
 {
     internal class Program
     {
-        const int Port = 8080;
-        static readonly HttpListener Listener = new();
+        static List<Sector> Sectors;
 
         static async Task Main(string[] args)
         {
-            // start the web server
-            Listener.Prefixes.Add($"http://+:{Port}/");
-            Listener.Start();
-            Listen();
-            await Task.Delay(-1);
-        }
+            // load sectors
+            Sectors = await SectorParsing.LoadSectors();
 
-        private static void Listen()
-        {
-            Listener.BeginGetContext(new AsyncCallback(ListenerCallback), Listener);
-        }
-        private static void ListenerCallback(IAsyncResult result)
-        {
-            var context = Listener.EndGetContext(result);
-            var request = context.Request;
-
-            string responseJson = string.Empty;
-            if (request.HasEntityBody)
+            // start the webserver
+            using (var server = new WebServer()
+                .WithModule(new ActionModule("/createSlotDistribution", HttpVerbs.Any, CreateSlotDistribution))
+                .WithModule(new ActionModule("/simulateEvent", HttpVerbs.Any, SimulateEvent)))
             {
-                Stream body = request.InputStream;
-                System.Text.Encoding encoding = request.ContentEncoding;
-                string inputJson = new StreamReader(body, encoding).ReadToEnd();
+                await server.RunAsync();
+                await Task.Delay(-1);
+            }
+        }
 
-                if (!string.IsNullOrEmpty(inputJson))
+        private static VATSIMEvent extractVatsimEvent(IHttpContext context)
+        {
+            try
+            {
+                var request = context.Request;
+                if (request.HasEntityBody)
                 {
-                    VATSIMEvent vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(inputJson);
-
-                    // do the calculations
-                    if (request.Url.AbsolutePath.Contains("CreateSlotDistribution", StringComparison.InvariantCultureIgnoreCase))
+                    Stream body = request.InputStream;
+                    string json = new StreamReader(body, request.ContentEncoding).ReadToEnd();
+                    if (!string.IsNullOrEmpty(json))
                     {
-                        // create slot distribution
-
+                        VATSIMEvent vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(json);
+                        if (vatsimEvent != null) return vatsimEvent;
                     }
-                    else if (request.Url.AbsolutePath.Contains("SimulateEvent", StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        // simulate event
+                }
+                throw new NullReferenceException("ExtractVatsimEvent returned null.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error extracting vatsim event from JSON.");
+                throw;
+            }
+        }
+        private static async Task SerializeAndSendVATSIMEvent(VATSIMEvent vatsimEvent, IHttpContext context)
+        {
+            var vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, JsonWrapping.SerializationSettings);
+            context.Response.StatusCode = (int)HttpStatusCode.OK;
+            await context.SendStringAsync(vatsimEventJson, "application/json", System.Text.Encoding.UTF8);
+        }
 
-                    }
-                }            
-            }    
+        private static async Task CreateSlotDistribution(IHttpContext context)
+        {
+            try
+            {
+                var vatsimEvent = extractVatsimEvent(context);
+                JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
+                await SlotDistributionCreator.CreateSlotDistribution(vatsimEvent);
+                JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
+                await SerializeAndSendVATSIMEvent(vatsimEvent, context);
 
-            var response = context.Response;
-            response.StatusCode = (int)HttpStatusCode.OK;
-            response.ContentType = "application/json";
-            byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseJson);
-            response.ContentLength64 = buffer.Length;
-            response.OutputStream.Write(buffer, 0, buffer.Length);
-            response.OutputStream.Close();
-
-            Listen();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                await context.SendStringAsync(ex.ToString(), "text/plain", System.Text.Encoding.UTF8);
+            }
+        }
+        private static async Task SimulateEvent(IHttpContext context)
+        {
+            try
+            {
+                var vatsimEvent = extractVatsimEvent(context);
+                JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
+                JsonWrapping.UnwrapAllRouteSegmentFacilityProgressions(vatsimEvent);
+                JsonWrapping.UnwrapAllSlotAirportsAndRouteSegments(vatsimEvent);
+                await Simulator.SimulateEvent(vatsimEvent);
+                JsonWrapping.WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(vatsimEvent);
+                await SerializeAndSendVATSIMEvent(vatsimEvent, context);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                await context.SendStringAsync(ex.ToString(), "text/plain", System.Text.Encoding.UTF8);
+            }
         }
     }
 }

@@ -51,7 +51,7 @@ namespace CTPSimulatorOfflineTester
                         location = new Location() { Identifier = waypoint };
                         locations.Add(waypoint, location);
                     }
-                    routeSegment.Locations.Add(location);
+                    routeSegment.LocationsInternal.Add(location);
                     vatsimEvent.Waypoints.Add(location);
                 }
                 vatsimEvent.RouteSegments.Add(routeSegment);

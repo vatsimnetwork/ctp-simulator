@@ -1,5 +1,6 @@
 ﻿using ConsoleTables;
 using CTPSimulator;
+using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Reflection.PortableExecutable;
 
@@ -9,6 +10,8 @@ namespace CTPSimulatorOfflineTester
     {
         static async Task Main(string[] args)
         {
+            //var vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(File.ReadAllText("test.json"));
+
             var vatsimEvent = TestingDataLoader.Load("25W");
             vatsimEvent.CalculationParameters.CalculateThroughputDataOnlyForManuallyProvidedSectors = false;
             vatsimEvent.Date = new DateOnly(2025, 04, 26);

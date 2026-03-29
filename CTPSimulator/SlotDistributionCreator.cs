@@ -36,22 +36,22 @@ namespace CTPSimulator
         public static async Task CreateSlotDistribution(VATSIMEvent vatsimEvent, CancellationToken cancellationToken = default)
         {
             // prepare data
-            vatsimEvent.DepartureAirports = vatsimEvent.Airports.Where(a => vatsimEvent.RouteSegments.Exists(r => r.Locations.First() == a)).ToList();
-            vatsimEvent.ArrivalAirports = vatsimEvent.Airports.Where(a => vatsimEvent.RouteSegments.Exists(r => r.Locations.Last() == a)).ToList();
+            vatsimEvent.DepartureAirports = vatsimEvent.Airports.Where(a => vatsimEvent.RouteSegments.Exists(r => r.LocationsInternal.First() == a)).ToList();
+            vatsimEvent.ArrivalAirports = vatsimEvent.Airports.Where(a => vatsimEvent.RouteSegments.Exists(r => r.LocationsInternal.Last() == a)).ToList();
 
             foreach (var airport in vatsimEvent.DepartureAirports)
             {
-                airport.ConnectingPrimaryRouteSegments = vatsimEvent.RouteSegments.Where(r => r.Locations.First() == airport).ToList();
+                airport.ConnectingPrimaryRouteSegments = vatsimEvent.RouteSegments.Where(r => r.LocationsInternal.First() == airport).ToList();
 
                 airport.ConnectingSecondaryRouteSegments = vatsimEvent.RouteSegments.Where(
-                    r => airport.ConnectingPrimaryRouteSegments.Exists(pr => pr.Locations.Last() == r.Locations.First())).ToList();
+                    r => airport.ConnectingPrimaryRouteSegments.Exists(pr => pr.LocationsInternal.Last() == r.LocationsInternal.First())).ToList();
             }
             foreach (var airport in vatsimEvent.ArrivalAirports)
             {
-                airport.ConnectingPrimaryRouteSegments = vatsimEvent.RouteSegments.Where(r => r.Locations.Last() == airport).ToList();
+                airport.ConnectingPrimaryRouteSegments = vatsimEvent.RouteSegments.Where(r => r.LocationsInternal.Last() == airport).ToList();
 
                 airport.ConnectingSecondaryRouteSegments = vatsimEvent.RouteSegments.Where(
-                    r => airport.ConnectingPrimaryRouteSegments.Exists(tr => tr.Locations.First() == r.Locations.Last())).ToList();
+                    r => airport.ConnectingPrimaryRouteSegments.Exists(tr => tr.LocationsInternal.First() == r.LocationsInternal.Last())).ToList();
             }
 
             if (vatsimEvent.CalculationParameters.RecalculateMaximumAirportSlots) vatsimEvent.ReCalculateMaximumThroughputPointSlots();
@@ -96,10 +96,10 @@ namespace CTPSimulator
                 choice.RouteSegment.SlotsAllocated++;
                 choice.ArrivalAirport.SlotsAllocated++;
 
-                var firstRouteSegment = choice.DepartureAirport.ConnectingPrimaryRouteSegments.Where(pr => pr.Locations.Last() == choice.RouteSegment.Locations.First()).OrderBy(pr => pr.SlotsAllocated).First();
+                var firstRouteSegment = choice.DepartureAirport.ConnectingPrimaryRouteSegments.Where(pr => pr.LocationsInternal.Last() == choice.RouteSegment.LocationsInternal.First()).OrderBy(pr => pr.SlotsAllocated).First();
                 firstRouteSegment.SlotsAllocated++;
 
-                var thirdRouteSegment = choice.ArrivalAirport.ConnectingPrimaryRouteSegments.Where(pr => pr.Locations.First() == choice.RouteSegment.Locations.Last()).OrderBy(pr => pr.SlotsAllocated).First();
+                var thirdRouteSegment = choice.ArrivalAirport.ConnectingPrimaryRouteSegments.Where(pr => pr.LocationsInternal.First() == choice.RouteSegment.LocationsInternal.Last()).OrderBy(pr => pr.SlotsAllocated).First();
                 thirdRouteSegment.SlotsAllocated++;
 
                 vatsimEvent.Slots.Add(new Slot()

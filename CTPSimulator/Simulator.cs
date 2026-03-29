@@ -90,15 +90,15 @@ namespace CTPSimulator
             if (slot.RouteSegmentsInternal.Count == 0) throw new ArgumentException($"Invalid number of RouteSegments provided for a slot (a minimum of 1 is required).");
             foreach (var routeSegment in slot.RouteSegmentsInternal) routeSegment.CheckValidity();
 
-            Location origin = slot.RouteSegmentsInternal.First().Locations.First();
+            Location origin = slot.RouteSegmentsInternal.First().LocationsInternal.First();
 
             // concat locations
             List<(Location, Coordinate, RouteSegment)> locations = [(origin, new Coordinate(origin.Latitude, origin.Longitude, new EagerLoad(false)), slot.RouteSegmentsInternal.First())];
             for (int r = 0; r < slot.RouteSegmentsInternal.Count; r++)
             {
-                for (int l = 1; l < slot.RouteSegmentsInternal[r].Locations.Count; l++)
+                for (int l = 1; l < slot.RouteSegmentsInternal[r].LocationsInternal.Count; l++)
                 {
-                    var location = slot.RouteSegmentsInternal[r].Locations[l];
+                    var location = slot.RouteSegmentsInternal[r].LocationsInternal[l];
                     locations.Add((location, new Coordinate(location.Latitude, location.Longitude, new EagerLoad(false)), slot.RouteSegmentsInternal[r]));
                 }
             }
@@ -152,7 +152,7 @@ namespace CTPSimulator
                                 sectorsToBeChecked = new List<Sector>();
                                 foreach (RouteSegment routeSegment in slot.RouteSegmentsInternal)
                                 {
-                                    foreach (Sector sector in routeSegment.ProvidedFacilityProgression)
+                                    foreach (Sector sector in routeSegment.ProvidedFacilityProgressionInternal)
                                     {
                                         if (!sectorsToBeChecked.Contains(sector))
                                         {
@@ -186,7 +186,7 @@ namespace CTPSimulator
                                 List<Location> waypointsToCheck;
                                 if (vatsimEvent.CalculationParameters.IntendedWaypointThroughputCalculationMode == SimulatorCalculationParameters.WaypointThroughputCalculationMode.FirstWaypointsOfNATRouteSegmentsOnly)
                                 {
-                                    waypointsToCheck = vatsimEvent.RouteSegments.Where(rs => rs.RouteSegmentGroup == "NAT").Select(rs => rs.Locations.First()).ToList();
+                                    waypointsToCheck = vatsimEvent.RouteSegments.Where(rs => rs.RouteSegmentGroup == "NAT").Select(rs => rs.LocationsInternal.First()).ToList();
                                 }
                                 else if (vatsimEvent.CalculationParameters.IntendedWaypointThroughputCalculationMode == SimulatorCalculationParameters.WaypointThroughputCalculationMode.AllWaypoints)
                                 {
