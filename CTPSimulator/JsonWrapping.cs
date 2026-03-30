@@ -77,6 +77,21 @@ namespace CTPSimulator
                     else throw new ArgumentException("RouteSegment ProvidedFacilityProgression sector Id not found: " + sectorId);
                 }
             }
+
+            foreach (var tagLimit in vatsimEvent.TagLimits)
+            {
+                vatsimEvent.TagLimitsById[tagLimit.Id] = tagLimit;
+            }
+
+            foreach (var routeSegment in vatsimEvent.RouteSegments)
+            {
+                foreach (var tagId in routeSegment.RouteSegmentTagIds)
+                {
+                    if (vatsimEvent.TagLimitsById.TryGetValue(tagId, out var tagLimit))
+                        routeSegment.RouteSegmentTagLimitsInternal.Add(tagLimit);
+                    // Tags without a limit entry are simply ignored — no limit means unlimited
+                }
+            }
         }
 
         public static void UnwrapAllSlotAirportsAndRouteSegments(VATSIMEvent vatsimEvent)

@@ -53,6 +53,12 @@ namespace CTPSimulator
         [JsonIgnore]
         public Dictionary<ulong, Sector> SectorsById = new();
 
+        [JsonIgnoreCreateSlotDistributionSerialization]
+        public List<TagLimit> TagLimits { get; set; } = new();
+
+        [JsonIgnore]
+        public Dictionary<ulong, TagLimit> TagLimitsById = new();
+
 
         // values populated by the simulator
         [JsonIgnore]
@@ -68,10 +74,10 @@ namespace CTPSimulator
         // values / functions only for the simulator internally
         public void ReCalculateMaximumThroughputPointSlots()
         {
-            foreach (var airport in Airports) CalculateMaximumThroughputPointSlots(airport);
+            // Airports: MaximumSlots is provided directly from the DB, do not recalculate
             foreach (var waypoint in Waypoints) CalculateMaximumThroughputPointSlots(waypoint);
             foreach (var routeSegment in RouteSegments) CalculateMaximumThroughputPointSlots(routeSegment);
-            foreach (var sector in Sectors) CalculateMaximumThroughputPointSlots(sector);
+            // Sectors: MaximumSlots is provided directly (explicit hard limit) or stays 0 (unlimited).
         }
         private void CalculateMaximumThroughputPointSlots(ThroughputPoint throughputPoint)
         {
@@ -105,7 +111,6 @@ namespace CTPSimulator
         [JsonIgnoreSerialization]
         public ushort MaximumAircraftPerHour { get; set; } = 20; // default for waypoints and route segments, airports and sectors will override this
 
-        [JsonIgnoreSerialization]
         public ushort MaximumSlots { get; set; }
 
 
@@ -175,7 +180,10 @@ namespace CTPSimulator
         public bool Enabled { get; set; } = true;
 
         [JsonIgnoreSerialization]
-        public List<string> RouteSegmentTags { get; set; } = new();
+        public List<ulong> RouteSegmentTagIds { get; set; } = new();
+
+        [JsonIgnore]
+        public List<TagLimit> RouteSegmentTagLimitsInternal { get; set; } = new();
 
         [JsonIgnore]
         public List<Sector> ProvidedFacilityProgressionInternal { get; set; } = new();
@@ -205,6 +213,19 @@ namespace CTPSimulator
     {
         [JsonIgnore]
         public List<SectorBoundary> SectorBoundaries { get; set; } = new List<SectorBoundary>();
+    }
+
+    public class TagLimit
+    {
+        public ulong Id { get; set; }
+        public string Tag { get; set; } = string.Empty;
+        public ushort MaximumSlots { get; set; }
+
+        [JsonIgnore]
+        public ushort SlotsAllocated { get; set; }
+
+        [JsonIgnore]
+        public bool AreSlotsStillAvailable => SlotsAllocated < MaximumSlots;
     }
 
     public class SectorBoundary

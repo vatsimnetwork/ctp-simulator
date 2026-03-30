@@ -62,6 +62,7 @@ namespace CTPSimulatorContainer
             {
                 var vatsimEvent = extractVatsimEvent(context);
                 JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
+                JsonWrapping.UnwrapAllRouteSegmentFacilityProgressions(vatsimEvent);
                 await SlotDistributionCreator.CreateSlotDistribution(vatsimEvent);
                 JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
                 await SerializeAndSendVATSIMEvent(vatsimEvent, context, JsonWrapping.CreateSlotDistributionSerializationSettings);

@@ -24,7 +24,12 @@ namespace CTPSimulator
             /// <summary>
             /// Random distribution
             /// </summary>
-            Random
+            Random,
+
+            /// <summary>
+            /// Distribute slots proportionally to airport vote counts, then fill remaining capacity greedily
+            /// </summary>
+            VoteProportional
         }
 
         [JsonIgnoreSerialization]
