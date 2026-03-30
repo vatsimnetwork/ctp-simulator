@@ -77,11 +77,17 @@ namespace CTPSimulator
             // Airports: MaximumSlots is provided directly from the DB, do not recalculate
             foreach (var waypoint in Waypoints) CalculateMaximumThroughputPointSlots(waypoint);
             foreach (var routeSegment in RouteSegments) CalculateMaximumThroughputPointSlots(routeSegment);
-            // Sectors: MaximumSlots is provided directly (explicit hard limit) or stays 0 (unlimited).
+            foreach (var sector in Sectors) CalculateMaximumThroughputPointSlots(sector);
         }
         private void CalculateMaximumThroughputPointSlots(ThroughputPoint throughputPoint)
         {
-            throughputPoint.MaximumSlots = (ushort)(throughputPoint.MaximumAircraftPerHour * DepartureTimeWindow.TotalHours);
+            if (throughputPoint.MaximumAircraftPerHour >= 65535)
+            {
+                throughputPoint.MaximumSlots = 65535; // unlimited sentinel
+                return;
+            }
+            var calculated = (uint)(throughputPoint.MaximumAircraftPerHour * DepartureTimeWindow.TotalHours);
+            throughputPoint.MaximumSlots = (ushort)Math.Min(65534, calculated);
         }
 
         [JsonIgnore]
@@ -126,10 +132,10 @@ namespace CTPSimulator
         public ushort SlotsAllocated { get; set; }
 
         [JsonIgnore]
-        public int SlotsStillAvailable => MaximumSlots == 0 ? int.MaxValue : MaximumSlots - SlotsAllocated;
+        public int SlotsStillAvailable => MaximumSlots >= 65535 ? int.MaxValue : MaximumSlots - SlotsAllocated;
 
         [JsonIgnore]
-        public bool AreSlotsStillAvailable => MaximumSlots == 0 || SlotsAllocated < MaximumSlots;
+        public bool AreSlotsStillAvailable => MaximumSlots >= 65535 || SlotsAllocated < MaximumSlots;
     }
 
     public class Location : ThroughputPoint // waypoint or airport
@@ -225,7 +231,7 @@ namespace CTPSimulator
         public ushort SlotsAllocated { get; set; }
 
         [JsonIgnore]
-        public bool AreSlotsStillAvailable => SlotsAllocated < MaximumSlots;
+        public bool AreSlotsStillAvailable => MaximumSlots >= 65535 || SlotsAllocated < MaximumSlots;
     }
 
     public class SectorBoundary
