@@ -126,10 +126,10 @@ namespace CTPSimulator
         public ushort SlotsAllocated { get; set; }
 
         [JsonIgnore]
-        public int SlotsStillAvailable => MaximumSlots - SlotsAllocated;
+        public int SlotsStillAvailable => MaximumSlots == 0 ? int.MaxValue : MaximumSlots - SlotsAllocated;
 
         [JsonIgnore]
-        public bool AreSlotsStillAvailable => SlotsAllocated < MaximumSlots;
+        public bool AreSlotsStillAvailable => MaximumSlots == 0 || SlotsAllocated < MaximumSlots;
     }
 
     public class Location : ThroughputPoint // waypoint or airport
