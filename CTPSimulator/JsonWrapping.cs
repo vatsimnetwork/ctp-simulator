@@ -9,19 +9,33 @@ namespace CTPSimulator
 {
     public static class JsonWrapping
     {
-        public static readonly JsonSerializerSettings SerializationSettings = new() { ContractResolver = new JsonPropertiesResolver() };
+        public static readonly JsonSerializerSettings CreateSlotDistributionSerializationSettings = new() { ContractResolver = new JsonCreateSlotDistributionPropertiesResolver() };
+        public static readonly JsonSerializerSettings SimulateEventSerializationSettings = new() { ContractResolver = new JsonSimulateEventPropertiesResolver() };
         public class JsonIgnoreSerializationAttribute : Attribute { }
-        class JsonPropertiesResolver : DefaultContractResolver
+        public class JsonIgnoreCreateSlotDistributionSerializationAttribute : Attribute { }
+        class JsonCreateSlotDistributionPropertiesResolver : DefaultContractResolver
         {
             protected override List<MemberInfo> GetSerializableMembers(Type objectType)
             {
                 //Return properties that do NOT have the JsonIgnoreSerializationAttribute
                 return objectType.GetProperties()
-                                 .Where(pi => !Attribute.IsDefined(pi, typeof(JsonIgnoreSerializationAttribute)))
+                                 .Where(pi => !Attribute.IsDefined(pi, typeof(JsonIgnoreSerializationAttribute)) &&
+                                 !Attribute.IsDefined(pi, typeof(JsonIgnoreCreateSlotDistributionSerializationAttribute)))
                                  .ToList<MemberInfo>();
             }
         }
-
+        public class JsonIgnoreSimulateEventSerializationAttribute : Attribute { }
+        class JsonSimulateEventPropertiesResolver : DefaultContractResolver
+        {
+            protected override List<MemberInfo> GetSerializableMembers(Type objectType)
+            {
+                //Return properties that do NOT have the JsonIgnoreSerializationAttribute
+                return objectType.GetProperties()
+                                 .Where(pi => !Attribute.IsDefined(pi, typeof(JsonIgnoreSerializationAttribute)) &&
+                                 !Attribute.IsDefined(pi, typeof(JsonIgnoreSimulateEventSerializationAttribute)))
+                                 .ToList<MemberInfo>();
+            }
+        }
 
         public static void UnwrapAllRouteSegmentLocations(VATSIMEvent vatsimEvent)
         {

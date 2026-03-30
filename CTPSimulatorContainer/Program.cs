@@ -49,9 +49,9 @@ namespace CTPSimulatorContainer
                 throw;
             }
         }
-        private static async Task SerializeAndSendVATSIMEvent(VATSIMEvent vatsimEvent, IHttpContext context)
+        private static async Task SerializeAndSendVATSIMEvent(VATSIMEvent vatsimEvent, IHttpContext context, JsonSerializerSettings serializerSettings)
         {
-            var vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, JsonWrapping.SerializationSettings);
+            var vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, serializerSettings);
             context.Response.StatusCode = (int)HttpStatusCode.OK;
             await context.SendStringAsync(vatsimEventJson, "application/json", System.Text.Encoding.UTF8);
         }
@@ -64,8 +64,7 @@ namespace CTPSimulatorContainer
                 JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
                 await SlotDistributionCreator.CreateSlotDistribution(vatsimEvent);
                 JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
-                await SerializeAndSendVATSIMEvent(vatsimEvent, context);
-
+                await SerializeAndSendVATSIMEvent(vatsimEvent, context, JsonWrapping.CreateSlotDistributionSerializationSettings);
             }
             catch (Exception ex)
             {
@@ -84,7 +83,7 @@ namespace CTPSimulatorContainer
                 JsonWrapping.UnwrapAllSlotAirportsAndRouteSegments(vatsimEvent);
                 await Simulator.SimulateEvent(vatsimEvent);
                 JsonWrapping.WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(vatsimEvent);
-                await SerializeAndSendVATSIMEvent(vatsimEvent, context);
+                await SerializeAndSendVATSIMEvent(vatsimEvent, context, JsonWrapping.SimulateEventSerializationSettings);
             }
             catch (Exception ex)
             {

@@ -10,12 +10,14 @@ namespace CTPSimulatorOfflineTester
     {
         static async Task Main(string[] args)
         {
-            //var vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(File.ReadAllText("test.json"));
+            var vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(File.ReadAllText("response_1774848370740.json"));
+            JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
 
-            var vatsimEvent = TestingDataLoader.Load("25W");
-            vatsimEvent.CalculationParameters.CalculateThroughputDataOnlyForManuallyProvidedSectors = false;
-            vatsimEvent.Date = new DateOnly(2025, 04, 26);
-            vatsimEvent.Sectors = await SectorParsing.LoadSectors();
+
+            //var vatsimEvent = TestingDataLoader.Load("25W");
+            //vatsimEvent.CalculationParameters.CalculateThroughputDataOnlyForManuallyProvidedSectors = false;
+            //vatsimEvent.Date = new DateOnly(2025, 04, 26);
+            //vatsimEvent.Sectors = await SectorParsing.LoadSectors();
 
             // slot calculation
             Stopwatch stopWatch = Stopwatch.StartNew();
@@ -26,7 +28,7 @@ namespace CTPSimulatorOfflineTester
             var table = new ConsoleTable("Departures", "NAT Tracks", "Arrivals");
             table.Options.EnableCount = false;
 
-            var natSegments = vatsimEvent.RouteSegments.Where(r => r.RouteSegmentGroup == "NAT").ToList();
+            var natSegments = vatsimEvent.RouteSegments.Where(rs => vatsimEvent.Airports.Exists(a => a.ConnectingSecondaryRouteSegments.Contains(rs))).ToList();
             int rows = Math.Max(Math.Max(vatsimEvent.DepartureAirports.Count, natSegments.Count), vatsimEvent.ArrivalAirports.Count);
             for (int i = 0; i < rows; i++)
             {
@@ -58,14 +60,28 @@ namespace CTPSimulatorOfflineTester
             }
             Console.WriteLine(table.ToString());
 
+            Console.WriteLine(vatsimEvent.CalculationParameters.SlotGenerationOutputCommentary);
             Console.WriteLine($"Slot calculation took {stopWatch.ElapsedMilliseconds}ms");
+
+            JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
+            var settings = JsonWrapping.CreateSlotDistributionSerializationSettings;
+            settings.Formatting = Formatting.Indented;
+            var vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, settings);
+            File.WriteAllText("createSlotDistribution.json", vatsimEventJson);
 
             // event simulation
             stopWatch = Stopwatch.StartNew();
             await Simulator.SimulateEvent(vatsimEvent);
             stopWatch.Stop();
 
+            Console.WriteLine(vatsimEvent.CalculationParameters.SimulationOutputCommentary);
             Console.WriteLine($"Event simulation took {stopWatch.ElapsedMilliseconds}ms");
+
+            JsonWrapping.WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(vatsimEvent);
+            settings = JsonWrapping.SimulateEventSerializationSettings;
+            settings.Formatting = Formatting.Indented;
+            vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, settings);
+            File.WriteAllText("simulateEvent.json", vatsimEventJson);
 
             // Block this task until the program is closed.
             await Task.Delay(-1);

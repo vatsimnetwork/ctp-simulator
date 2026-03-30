@@ -53,8 +53,33 @@ namespace CTPSimulator
                 airport.ConnectingSecondaryRouteSegments = vatsimEvent.RouteSegments.Where(
                     r => airport.ConnectingPrimaryRouteSegments.Exists(tr => tr.LocationsInternal.First() == r.LocationsInternal.Last())).ToList();
             }
+            foreach (var airport in vatsimEvent.Airports)
+            {
+                airport.ConnectingAirports = vatsimEvent.Airports.Where(a => a != airport &&
+                airport.ConnectingSecondaryRouteSegments.Intersect(a.ConnectingSecondaryRouteSegments).Any()).ToList();
+            }
 
             if (vatsimEvent.CalculationParameters.RecalculateMaximumAirportSlots) vatsimEvent.ReCalculateMaximumThroughputPointSlots();
+
+            // data integrity checking
+            List<string> commentary = new();
+
+            // check for disconnected route segments
+            //var disconnectedRouteSegments = vatsimEvent.RouteSegments.Where(rs =>
+            //    rs.Enabled &&
+            //    (!vatsimEvent.DepartureAirports.Exists(da => 
+            //        da.ConnectingPrimaryRouteSegments.Contains(rs) ||
+            //        da.ConnectingSecondaryRouteSegments.Contains(rs)) ||
+            //    !vatsimEvent.ArrivalAirports.Exists(aa =>
+            //         aa.ConnectingPrimaryRouteSegments.Contains(rs) ||
+            //        aa.ConnectingSecondaryRouteSegments.Contains(rs))
+            //        )).ToList();
+
+            var disconnectedAirports = vatsimEvent.Airports.Where(a => a.ConnectingAirports.Count == 0).Select(a => a.Identifier).ToList();
+            if (disconnectedAirports.Count > 0)
+            {
+                commentary.Add($"Warning, the following airports do not have any connecting airports: {string.Join(", ", disconnectedAirports)}");
+            }
 
             uint slotID = 0;
             while (true)
@@ -116,6 +141,8 @@ namespace CTPSimulator
                 });
                 slotID++;
             }
+
+            vatsimEvent.CalculationParameters.SlotGenerationOutputCommentary = string.Join(Environment.NewLine + Environment.NewLine, commentary);
         }
     }
 }

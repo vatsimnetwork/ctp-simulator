@@ -10,7 +10,7 @@ namespace CTPSimulator
 {
     public class VATSIMEvent
     {
-        public uint Id { get; set; }
+        public ulong Id { get; set; }
 
         // values coming from the database
         public string Title { get; set; } = string.Empty; // for example CTP 26E
@@ -29,25 +29,29 @@ namespace CTPSimulator
 
 
         // througput points
+        [JsonIgnoreCreateSlotDistributionSerialization]
         public List<Airport> Airports { get; set; } = new();
 
         [JsonIgnore]
-        public Dictionary<uint, Airport> AirportsById = new();
+        public Dictionary<ulong, Airport> AirportsById = new();
 
+        [JsonIgnoreCreateSlotDistributionSerialization]
         public List<Location> Waypoints { get; set; } = new();
 
         [JsonIgnore]
-        public Dictionary<uint, Location> WaypointsById = new();
+        public Dictionary<ulong, Location> WaypointsById = new();
 
+        [JsonIgnoreCreateSlotDistributionSerialization]
         public List<RouteSegment> RouteSegments { get; set; } = new();
 
         [JsonIgnore]
-        public Dictionary<uint, RouteSegment> RouteSegmentsById = new();
+        public Dictionary<ulong, RouteSegment> RouteSegmentsById = new();
 
+        [JsonIgnoreCreateSlotDistributionSerialization]
         public List<Sector> Sectors { get; set; } = new();
 
         [JsonIgnore]
-        public Dictionary<uint, Sector> SectorsById = new();
+        public Dictionary<ulong, Sector> SectorsById = new();
 
 
         // values populated by the simulator
@@ -94,25 +98,28 @@ namespace CTPSimulator
     public abstract class ThroughputPoint
     {
         // values coming from the database
-        public uint Id { get; set; }
+        public ulong Id { get; set; }
 
         public string Identifier { get; set; } = string.Empty; // for example SPESA or EDDF or "PORTI_BOS_1", or oceanic track "M" or "EHAA" for sectors
 
         [JsonIgnoreSerialization]
         public ushort MaximumAircraftPerHour { get; set; } = 20; // default for waypoints and route segments, airports and sectors will override this
-       
+
+        [JsonIgnoreSerialization]
         public ushort MaximumSlots { get; set; }
 
 
         // values populated by the simulator
-        public ushort SlotsAllocated { get; set; }
-
         [JsonIgnore]
         public Dictionary<int, List<Slot>> SlotsAnalysisFramesViaMinutesFromSynchronizationTimeInternal { get; set; } = new();
 
-        public Dictionary<int, List<uint>> SlotsAnalysisFramesViaMinutesFromSynchronizationTime { get; set; } = new();
+        [JsonIgnoreCreateSlotDistributionSerialization]
+        public Dictionary<int, List<ulong>> SlotsAnalysisFramesViaMinutesFromSynchronizationTime { get; set; } = new();
 
         // values / functions only for the simulator internally
+        [JsonIgnore]
+        public ushort SlotsAllocated { get; set; }
+
         [JsonIgnore]
         public int SlotsStillAvailable => MaximumSlots - SlotsAllocated;
 
@@ -135,6 +142,7 @@ namespace CTPSimulator
         [JsonIgnoreSerialization]
         public ushort NumberOfVotes { get; set; }
 
+        [JsonIgnoreCreateSlotDistributionSerialization]
         // values populated by the simulator
         public DateTime DepartureTimeWindowStart { get; set; }
 
@@ -143,6 +151,9 @@ namespace CTPSimulator
 
         [JsonIgnore]
         public List<RouteSegment> ConnectingSecondaryRouteSegments { get; set; } = new();
+
+        [JsonIgnore]
+        public List<Airport> ConnectingAirports { get; set; } = new();
     }
 
 
@@ -169,13 +180,14 @@ namespace CTPSimulator
         [JsonIgnore]
         public List<Sector> ProvidedFacilityProgressionInternal { get; set; } = new();
 
-        public List<uint> ProvidedFacilityProgression { get; set; } = new();
+        [JsonIgnoreSerialization]
+        public List<ulong> ProvidedFacilityProgression { get; set; } = new();
 
         [JsonIgnore]
         public List<Location> LocationsInternal { get; set; } = new(); // can be waypoints or airports
 
         [JsonIgnoreSerialization]
-        public List<uint> Locations { get; set; } = new();
+        public List<ulong> Locations { get; set; } = new();
 
         [JsonIgnore]
         /// <summary>
@@ -197,7 +209,6 @@ namespace CTPSimulator
 
     public class SectorBoundary
     {
-        public uint Id { get; set; }
         public double MaxLatitude { get; set; }
         public double MinLatitude { get; set; }
         public double MaxLongitude { get; set; }
@@ -207,26 +218,32 @@ namespace CTPSimulator
 
     public class Slot
     {
-        public uint Id { get; set; }
+        public ulong Id { get; set; }
 
         // values populated by the simulator
         [JsonIgnore]
         public List<RouteSegment> RouteSegmentsInternal { get; set; } = new();
 
-        public List<uint> RouteSegments { get; set; } = new();
+        public List<ulong> RouteSegments { get; set; } = new();
 
+        [JsonIgnoreCreateSlotDistributionSerialization]
         public DateTime DepartureTime { get; set; }
+
+        [JsonIgnoreCreateSlotDistributionSerialization]
         public DateTime ProjectedArrivalTime { get; set; }
+
+        [JsonIgnore]
+        public TimeSpan ProjectedFlightTime => ProjectedArrivalTime - DepartureTime;
 
         [JsonIgnore]
         public Airport DepartureAirportInternal { get; set; }
 
-        public uint DepartureAirport { get; set; }
+        public ulong DepartureAirport { get; set; }
 
         [JsonIgnore]
         public Airport ArrivalAirportInternal { get; set; }
 
-        public uint ArrivalAirport { get; set; }
+        public ulong ArrivalAirport { get; set; }
 
         [JsonIgnore]
         public TimeSpan TimeUntilSynchronizationLongitudeCrossing { get; set; }

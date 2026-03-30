@@ -30,6 +30,7 @@ namespace CTPSimulator
         [JsonIgnoreSerialization]
         public SlotGenerationMode IntendedSlotGenerationMode { get; set; } = SlotGenerationMode.MaximizeSlots;
 
+        [JsonIgnoreSimulateEventSerialization]
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
         public string SlotGenerationOutputCommentary { get; set; } = string.Empty;
 
@@ -86,6 +87,8 @@ namespace CTPSimulator
         /// <summary>Should we use an ellipsoid earth model for more precise but more performance-hungry distance calculations?</summary>
         public bool HighSimulationAccuracy { get; set; }
 
+
+        [JsonIgnoreCreateSlotDistributionSerialization]
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
         public string SimulationOutputCommentary { get; set; } = string.Empty;
     }
