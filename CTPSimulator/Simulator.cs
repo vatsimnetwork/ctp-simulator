@@ -12,9 +12,10 @@ namespace CTPSimulator
     {
         public static async Task SimulateEvent(VATSIMEvent vatsimEvent, CancellationToken cancellationToken = default)
         {
+            // STEP 1: CALCULATE SLOT TIMINGS
             if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode != SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.None)
             {
-                // extract slots qith unique routings
+                // extract slots with unique routings
                 Dictionary<Airport, List<List<Slot>>> slotsWithUniqueRoutings = new Dictionary<Airport, List<List<Slot>>>();
                 foreach (Slot slot in vatsimEvent.Slots)
                 {
@@ -76,7 +77,7 @@ namespace CTPSimulator
                 }
             }
 
-            // calculate all slots
+            // STEP 2: SIMULATE SLOTS
             foreach (var slot in vatsimEvent.Slots)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -105,6 +106,10 @@ namespace CTPSimulator
 
             // calculation precision
             Shape earthShape = vatsimEvent.CalculationParameters.HighSimulationAccuracy ? Shape.Ellipsoid : Shape.Sphere;
+
+            // log takeoff at departure airport
+            int minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - departureTime).TotalMinutes);
+            LogSlotInThroughputPoint(slot.DepartureAirportInternal, minuteOffset, slot);
 
             // do the calculations
             DateTime currentTime = departureTime;
@@ -167,7 +172,7 @@ namespace CTPSimulator
                             }
 
                             // log sectors
-                            int minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
+                            minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
                             foreach (Sector sector in sectorsToBeChecked)
                             {
                                 cancellationToken.ThrowIfCancellationRequested();
@@ -230,7 +235,7 @@ namespace CTPSimulator
                         else if (!synchronizationMode) // final segment: log arrival time
                         {
                             slot.ProjectedArrivalTime = currentTime;
-                            int minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
+                            minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
                             LogSlotInThroughputPoint(slot.ArrivalAirportInternal, minuteOffset, slot);
                         }
 
