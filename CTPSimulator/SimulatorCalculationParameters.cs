@@ -38,7 +38,7 @@ namespace CTPSimulator
         [JsonIgnore]
         public List<string> SlotGenerationOutputComments { get; set; } = new();
 
-        [JsonIgnoreOnSimulateEventSerialization]
+        [JsonOnlyOnCreateSlotDistributionSerialization]
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
         public string SlotGenerationOutputCommentary { get; set; } = string.Empty;
 
@@ -89,17 +89,17 @@ namespace CTPSimulator
 
 
         [JsonIgnoreOnSerialization]
-        public double CalculationFallbackGroundSpeed { get; set; } = 300d;
+        public double CalculationFallbackGroundSpeed { get; set; } = 500d;
 
         [JsonIgnoreOnSerialization]
         /// <summary>Should we use an ellipsoid earth model for more precise but more performance-hungry distance calculations?</summary>
-        public bool HighSimulationAccuracy { get; set; } = false;
+        public bool HighSimulationAccuracy { get; set; } = true;
 
 
         [JsonIgnore]
         public List<string> SimulationOutputComments { get; set; } = new();
 
-        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        [JsonOnlyOnSimulateEventSerialization]
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
         public string SimulationOutputCommentary { get; set; } = string.Empty;
     }

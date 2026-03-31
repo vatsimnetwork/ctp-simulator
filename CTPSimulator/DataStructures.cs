@@ -29,31 +29,31 @@ namespace CTPSimulator
 
 
         // throughput points
-        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        [JsonOnlyOnSimulateEventSerialization]
         public List<Airport> Airports { get; set; } = new();
 
         [JsonIgnore]
         public Dictionary<ulong, Airport> AirportsById = new();
 
-        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        [JsonOnlyOnSimulateEventSerialization]
         public List<Location> Waypoints { get; set; } = new();
 
         [JsonIgnore]
         public Dictionary<ulong, Location> WaypointsById = new();
 
-        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        [JsonOnlyOnSimulateEventSerialization]
         public List<RouteSegment> RouteSegments { get; set; } = new();
 
         [JsonIgnore]
         public Dictionary<ulong, RouteSegment> RouteSegmentsById = new();
 
-        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        [JsonOnlyOnSimulateEventSerialization]
         public List<Sector> Sectors { get; set; } = new();
 
         [JsonIgnore]
         public Dictionary<ulong, Sector> SectorsById = new();
 
-        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        [JsonOnlyOnSimulateEventSerialization]
         public List<ThroughputPoint> TagLimits { get; set; } = new();
 
         [JsonIgnore]
@@ -108,7 +108,7 @@ namespace CTPSimulator
         [JsonIgnore]
         public Dictionary<int, List<Slot>> AnalysisFramesViaMinutesFromSynchronizationTimeSlots { get; set; } = new();
 
-        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        [JsonOnlyOnSimulateEventSerialization]
         public Dictionary<int, List<ulong>> AnalysisFramesViaMinutesFromSynchronizationTimeSlotIds { get; set; } = new();
 
         // values / functions only for the simulator internally
@@ -137,7 +137,7 @@ namespace CTPSimulator
         [JsonIgnoreOnSerialization]
         public ushort NumberOfVotes { get; set; }
 
-        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        [JsonOnlyOnSimulateEventSerialization]
         // values populated by the simulator
         public DateTimeOffset DepartureTimeWindowStart { get; set; }
 
@@ -224,10 +224,10 @@ namespace CTPSimulator
 
         public List<ulong> RouteSegmentIds { get; set; } = new();
 
-        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        [JsonOnlyOnSimulateEventSerialization]
         public DateTimeOffset DepartureTime { get; set; }
 
-        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        [JsonOnlyOnSimulateEventSerialization]
         public DateTimeOffset ProjectedArrivalTime { get; set; }
 
         [JsonOnlyOnHighVerbositySerialization]
@@ -246,8 +246,15 @@ namespace CTPSimulator
         [JsonIgnore]
         public TimeSpan TimeUntilSynchronizationLongitudeCrossing { get; set; }
 
+        [JsonOnlyOnHighVerbositySerialization, JsonOnlyOnSimulateEventSerialization]
+        public double RoutingDistanceInNm { get; set; }
+
         [JsonOnlyOnHighVerbositySerialization]
-        public double RoutingDistance { get; set; }
+        public string CombinedRouteString { get; set; } = string.Empty;
+
+        /// <summary>Distnaces between each waypoint</summary>
+        [JsonOnlyOnHighVerbositySerialization, JsonOnlyOnSimulateEventSerialization]
+        public List<string> EnrouteDistances { get; set; } = new();
 
         // a bunch of values must be stored that are outside the scope of the simulator, like
         // CID:

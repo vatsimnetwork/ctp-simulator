@@ -96,16 +96,16 @@ namespace CTPSimulator
             {
                 if (r == 0) // first route segment
                 {
-                    if (slot.RouteSegments[r].LocationIds.First() != slot.DepartureAirportId) throw new ArgumentException($"Slot routing for slot {slot.Id} does not start with slot departure airport.");
+                    if (slot.RouteSegments[r].Locations.First() != slot.DepartureAirport) throw new ArgumentException($"Slot routing for slot {slot.Id} does not start with slot departure airport, but starts with {slot.RouteSegments[r].Locations.First().Identifier} on route {slot.RouteSegments[r].Identifier}.");
                 }
                 else // middle route segment
                 {
-                    if (slot.RouteSegments[r - 1].LocationIds.Last() != slot.RouteSegments[r].LocationIds.First()) throw new ArgumentException($"Slot routing for slot {slot.Id} has segments that do not connect to each other.");
+                    if (slot.RouteSegments[r - 1].Locations.Last() != slot.RouteSegments[r].Locations.First()) throw new ArgumentException($"Slot routing for slot {slot.Id} has segments that do not connect to each other: {slot.RouteSegments[r - 1].Identifier} not connecting to {slot.RouteSegments[r].Identifier}.");
                 }
 
-                if (r == slot.RouteSegments.Count - 1)
+                if (r == slot.RouteSegments.Count - 1) // last route segment
                 {
-                    if (slot.RouteSegments[r].LocationIds.Last() != slot.ArrivalAirportId) throw new ArgumentException($"Slot routing for slot {slot.Id} does not end with slot arrival airport.");
+                    if (slot.RouteSegments[r].Locations.Last() != slot.ArrivalAirport) throw new ArgumentException($"Slot routing for slot {slot.Id} does not end with slot arrival airport, but ends with {slot.RouteSegments[r].Locations.Last().Identifier} on route {slot.RouteSegments[r].Identifier}.");
                 }
             }
 
@@ -119,6 +119,14 @@ namespace CTPSimulator
                 {
                     var location = slot.RouteSegments[r].Locations[l];
                     locations.Add((location, new Coordinate(location.Latitude, location.Longitude, new EagerLoad(false)), slot.RouteSegments[r]));
+                }
+            }
+
+            if (vatsimEvent.CalculationParameters.HighVerbosity)
+            {
+                for (int i = 1; i < locations.Count; i++)
+                {
+                    slot.EnrouteDistances.Add($"{locations[i - 1].Item1.Identifier} -> {locations[i].Item1.Identifier}: {locations[i - 1].Item2.Get_Distance_From_Coordinate(locations[i].Item2).NauticalMiles:F2} nm");
                 }
             }
 
@@ -168,7 +176,7 @@ namespace CTPSimulator
                         // we are not in synchronization mode (so log the throughput data)
                         if (!synchronizationMode)
                         {
-                            slot.RoutingDistance += timeSliceDistance;
+                            slot.RoutingDistanceInNm += timeSliceDistance;
 
                             // log this into sectors
                             List<Sector> sectorsToBeChecked;
@@ -255,7 +263,7 @@ namespace CTPSimulator
                         else if (!synchronizationMode) // final segment: log arrival time
                         {
                             slot.ProjectedArrivalTime = currentTime;
-                            slot.RoutingDistance += distanceToNextWaypoint;
+                            slot.RoutingDistanceInNm += distanceToNextWaypoint;
                             minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
                             LogSlotInThroughputPoint(slot.ArrivalAirport, minuteOffset, slot);
                         }
