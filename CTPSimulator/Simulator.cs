@@ -157,7 +157,7 @@ namespace CTPSimulator
                     // calculate speed
                     double groundSpeed = vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed; // in knots
 
-                    // calculate current position
+                    // calculate this time slice
                     double timeSliceDistance = groundSpeed * timeSlice.TotalHours; // in nm
                     if (timeSliceDistance < distanceToNextWaypoint) // waypoint will not be reached within this time slice
                     {
@@ -168,6 +168,8 @@ namespace CTPSimulator
                         // we are not in synchronization mode (so log the throughput data)
                         if (!synchronizationMode)
                         {
+                            slot.RoutingDistance += timeSliceDistance;
+
                             // log this into sectors
                             List<Sector> sectorsToBeChecked;
                             if (vatsimEvent.CalculationParameters.CalculateThroughputDataOnlyForManuallyProvidedSectors)
@@ -253,6 +255,7 @@ namespace CTPSimulator
                         else if (!synchronizationMode) // final segment: log arrival time
                         {
                             slot.ProjectedArrivalTime = currentTime;
+                            slot.RoutingDistance += distanceToNextWaypoint;
                             minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
                             LogSlotInThroughputPoint(slot.ArrivalAirport, minuteOffset, slot);
                         }

@@ -89,7 +89,7 @@ namespace CTPSimulator
     }
 
 
-    public abstract class ThroughputPoint
+    public class ThroughputPoint
     {
         const int InfinityMarker = 65535;
 
