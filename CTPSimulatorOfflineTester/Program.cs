@@ -10,9 +10,8 @@ namespace CTPSimulatorOfflineTester
     {
         static async Task Main(string[] args)
         {
-            var vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(File.ReadAllText("response_1774848370740.json"));
+            var vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(File.ReadAllText("response_1774921370528.json"));
             JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
-
 
             //var vatsimEvent = TestingDataLoader.Load("25W");
             //vatsimEvent.CalculationParameters.CalculateThroughputDataOnlyForManuallyProvidedSectors = false;
@@ -64,10 +63,16 @@ namespace CTPSimulatorOfflineTester
             Console.WriteLine($"Slot calculation took {stopWatch.ElapsedMilliseconds}ms");
 
             JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
+            JsonWrapping.WrapSlotGenerationOutputCommentary(vatsimEvent);
             var settings = JsonWrapping.CreateSlotDistributionSerializationSettings;
             settings.Formatting = Formatting.Indented;
             var vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, settings);
             File.WriteAllText("createSlotDistribution.json", vatsimEventJson);
+
+            JsonWrapping.UnwrapAllRouteSegmentFacilityProgressions(vatsimEvent);
+
+            var sectorBoundaries = await SectorParsing.LoadSectorBoundaries();
+            JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, sectorBoundaries);
 
             // event simulation
             stopWatch = Stopwatch.StartNew();
@@ -77,6 +82,7 @@ namespace CTPSimulatorOfflineTester
             Console.WriteLine(vatsimEvent.CalculationParameters.SimulationOutputCommentary);
             Console.WriteLine($"Event simulation took {stopWatch.ElapsedMilliseconds}ms");
 
+            JsonWrapping.WrapSimulationOutputCommentary(vatsimEvent);
             JsonWrapping.WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(vatsimEvent);
             settings = JsonWrapping.SimulateEventSerializationSettings;
             settings.Formatting = Formatting.Indented;
@@ -84,7 +90,7 @@ namespace CTPSimulatorOfflineTester
             File.WriteAllText("simulateEvent.json", vatsimEventJson);
 
             // Block this task until the program is closed.
-            await Task.Delay(-1);
+           await Task.Delay(-1);
         }
         static string BuildInfo(ThroughputPoint throughputPoint)
         {

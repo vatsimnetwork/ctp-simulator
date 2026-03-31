@@ -64,12 +64,10 @@ namespace CTPSimulator
             if (vatsimEvent.CalculationParameters.RecalculateMaximumAirportSlots) vatsimEvent.ReCalculateMaximumThroughputPointSlots();
 
             // data integrity checking
-            List<string> commentary = new();
-
             var disconnectedAirports = vatsimEvent.Airports.Where(a => a.ConnectingAirports.Count == 0).Select(a => a.Identifier).ToList();
             if (disconnectedAirports.Count > 0)
             {
-                commentary.Add($"Warning, the following airports do not have any connecting airports: {string.Join(", ", disconnectedAirports)}");
+                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Warning, the following airports do not have any connecting airports: {string.Join(", ", disconnectedAirports)}");
             }
 
             // Pre-calculate total votes for departure airports for proportional allocation
@@ -216,11 +214,9 @@ namespace CTPSimulator
             }
 
             foreach (var tl in vatsimEvent.TagLimits.Where(t => t.MaximumSlots > 0 && t.SlotsAllocated >= t.MaximumSlots))
-                commentary.Add($"Tag limit reached: {tl.Tag} ({tl.SlotsAllocated}/{tl.MaximumSlots} slots)");
+                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Tag limit reached: {tl.Tag} ({tl.SlotsAllocated}/{tl.MaximumSlots} slots)");
             foreach (var sector in vatsimEvent.Sectors.Where(s => s.MaximumSlots > 0 && s.SlotsAllocated >= s.MaximumSlots))
-                commentary.Add($"Sector limit reached: {sector.Identifier} ({sector.SlotsAllocated}/{sector.MaximumSlots} slots)");
-
-            vatsimEvent.CalculationParameters.SlotGenerationOutputCommentary = string.Join(Environment.NewLine + Environment.NewLine, commentary);
+                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Sector limit reached: {sector.Identifier} ({sector.SlotsAllocated}/{sector.MaximumSlots} slots)");
         }
     }
 }

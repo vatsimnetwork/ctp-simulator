@@ -9,12 +9,12 @@ namespace CTPSimulatorContainer
 {
     internal class Program
     {
-        static List<Sector> Sectors;
+        static Dictionary<string, List<SectorBoundary>> SectorBoundaries;
 
         static async Task Main(string[] args)
         {
             // load sectors
-            Sectors = await SectorParsing.LoadSectors();
+            SectorBoundaries = await SectorParsing.LoadSectorBoundaries();
 
             // start the webserver
             using (var server = new WebServer("http://*:8080")
@@ -65,6 +65,7 @@ namespace CTPSimulatorContainer
                 JsonWrapping.UnwrapAllRouteSegmentFacilityProgressions(vatsimEvent);
                 await SlotDistributionCreator.CreateSlotDistribution(vatsimEvent);
                 JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
+                JsonWrapping.WrapSlotGenerationOutputCommentary(vatsimEvent);
                 await SerializeAndSendVATSIMEvent(vatsimEvent, context, JsonWrapping.CreateSlotDistributionSerializationSettings);
             }
             catch (Exception ex)
@@ -82,7 +83,11 @@ namespace CTPSimulatorContainer
                 JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
                 JsonWrapping.UnwrapAllRouteSegmentFacilityProgressions(vatsimEvent);
                 JsonWrapping.UnwrapAllSlotAirportsAndRouteSegments(vatsimEvent);
+                JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, SectorBoundaries);
+
+                // simulate
                 await Simulator.SimulateEvent(vatsimEvent);
+                JsonWrapping.WrapSimulationOutputCommentary(vatsimEvent);
                 JsonWrapping.WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(vatsimEvent);
                 await SerializeAndSendVATSIMEvent(vatsimEvent, context, JsonWrapping.SimulateEventSerializationSettings);
             }

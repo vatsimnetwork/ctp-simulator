@@ -94,6 +94,28 @@ namespace CTPSimulator
             }
         }
 
+        public static void UnwrapSectorBoundaries(VATSIMEvent vatsimEvent, Dictionary<string, List<SectorBoundary>> sectorBoundaries)
+        {
+            List<string> sectorsWithoutBoundaries = new();
+            foreach (var sector in vatsimEvent.Sectors)
+            {
+                if (sectorBoundaries.TryGetValue(sector.Identifier, out var boundaries))
+                {
+                    sector.SectorBoundaries = boundaries;
+                }
+                else
+                {
+                    sectorsWithoutBoundaries.Add(sector.Identifier);
+                }
+            }
+            if (sectorsWithoutBoundaries.Count > 0)
+            {
+                vatsimEvent.CalculationParameters.SimulationOutputComments.Add(
+                    $"Warning, the following sectors do not have any sector boundaries defined, " +
+                    $"therefore no throughput analysis can be calculated: {string.Join(", ", sectorsWithoutBoundaries)}");
+            }
+        }
+
         public static void UnwrapAllSlotAirportsAndRouteSegments(VATSIMEvent vatsimEvent)
         {
             foreach (var routeSegment in vatsimEvent.RouteSegments)
@@ -127,7 +149,7 @@ namespace CTPSimulator
         }
         public static void WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(VATSIMEvent vatsimEvent)
         {
-            List<ThroughputPoint> throughputPoints = [.. vatsimEvent.Waypoints, .. vatsimEvent.RouteSegments, .. vatsimEvent.Airports];
+            List<ThroughputPoint> throughputPoints = [.. vatsimEvent.Waypoints, .. vatsimEvent.RouteSegments, .. vatsimEvent.Airports, .. vatsimEvent.Sectors];
             foreach (var throughputPoint in throughputPoints)
             {
                 foreach (var timeSlice in throughputPoint.SlotsAnalysisFramesViaMinutesFromSynchronizationTimeInternal)
@@ -135,6 +157,15 @@ namespace CTPSimulator
                     throughputPoint.SlotsAnalysisFramesViaMinutesFromSynchronizationTime[timeSlice.Key] = timeSlice.Value.Select(s => s.Id).ToList();
                 }
             }
+        }
+
+        public static void WrapSlotGenerationOutputCommentary(VATSIMEvent vatsimEvent)
+        {
+            vatsimEvent.CalculationParameters.SlotGenerationOutputCommentary = string.Join(Environment.NewLine + Environment.NewLine, vatsimEvent.CalculationParameters.SlotGenerationOutputComments);
+        }
+        public static void WrapSimulationOutputCommentary(VATSIMEvent vatsimEvent)
+        {
+            vatsimEvent.CalculationParameters.SimulationOutputCommentary = string.Join(Environment.NewLine + Environment.NewLine, vatsimEvent.CalculationParameters.SimulationOutputComments);
         }
     }
 }

@@ -267,15 +267,15 @@ namespace CTPSimulator
 
         private static bool SectorContainsPosition(Coordinate position, Sector sector)
         {
-            double decimalDegree = position.Latitude.DecimalDegree;
-            double decimalDegree2 = position.Longitude.DecimalDegree;
+            double lat = position.Latitude.DecimalDegree;
+            double lon = position.Longitude.DecimalDegree;
             foreach (SectorBoundary sectorBoundary in sector.SectorBoundaries)
             {
-                if (sectorBoundary.MaxLatitude > decimalDegree && 
-                    sectorBoundary.MinLatitude < decimalDegree && 
-                    sectorBoundary.MaxLongitude > decimalDegree2 && 
-                    sectorBoundary.MinLongitude < decimalDegree2 && 
-                    CoordinatesAreInPolygon(decimalDegree, decimalDegree2, sectorBoundary.Coordinates))
+                if (sectorBoundary.MaxLatitude >= lat && 
+                    sectorBoundary.MinLatitude <= lat && 
+                    sectorBoundary.MaxLongitude >= lon && 
+                    sectorBoundary.MinLongitude <= lon && 
+                    CoordinatesAreInPolygon(lat, lon, sectorBoundary.Coordinates))
                 {
                     return true;
                 }

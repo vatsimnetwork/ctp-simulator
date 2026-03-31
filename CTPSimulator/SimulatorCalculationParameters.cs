@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using static CTPSimulator.JsonWrapping;
@@ -34,6 +35,9 @@ namespace CTPSimulator
 
         [JsonIgnoreSerialization]
         public SlotGenerationMode IntendedSlotGenerationMode { get; set; } = SlotGenerationMode.MaximizeSlots;
+
+        [JsonIgnore]
+        public List<string> SlotGenerationOutputComments { get; set; } = new();
 
         [JsonIgnoreSimulateEventSerialization]
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
@@ -92,6 +96,9 @@ namespace CTPSimulator
         /// <summary>Should we use an ellipsoid earth model for more precise but more performance-hungry distance calculations?</summary>
         public bool HighSimulationAccuracy { get; set; }
 
+
+        [JsonIgnore]
+        public List<string> SimulationOutputComments { get; set; } = new();
 
         [JsonIgnoreCreateSlotDistributionSerialization]
         /// <summary>Populated by the simulator to be displayed back to the user</summary>

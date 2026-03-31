@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Reflection;
 using System.Text;
 
@@ -8,7 +9,7 @@ namespace CTPSimulator
 {
     public static class SectorParsing
     {
-        public static async Task<List<Sector>> LoadSectors(string pathToBoundariesGeoJSON = null)
+        public static async Task<Dictionary<string, List<SectorBoundary>>> LoadSectorBoundaries(string pathToBoundariesGeoJSON = null)
         {
             string json;
             if (pathToBoundariesGeoJSON == null)
@@ -22,7 +23,7 @@ namespace CTPSimulator
             {
                 json = File.ReadAllText(pathToBoundariesGeoJSON);
             }
-            List<Sector> sectors = new List<Sector>();
+            Dictionary<string, List<SectorBoundary>> sectorBoundaries = new();
             JObject boundariesJSON = JObject.Parse(json);
             foreach (JToken boundary in boundariesJSON["features"])
             {
@@ -68,13 +69,13 @@ namespace CTPSimulator
                     });
                 }
                 string code = (boundary["properties"]["id"]).ToString();
-                sectors.Add(new Sector
+                if (sectorBoundaries.TryGetValue(code, out var definedBoundaries))
                 {
-                    Identifier = code,
-                    SectorBoundaries = boundaries
-                });
+                    definedBoundaries.AddRange(boundaries);
+                }
+                else sectorBoundaries.Add(code, boundaries);
             }
-            return sectors;
+            return sectorBoundaries;
         }
     }
 }
