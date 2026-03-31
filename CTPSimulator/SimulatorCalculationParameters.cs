@@ -8,11 +8,10 @@ namespace CTPSimulator
 {
     public class SimulatorCalculationParameters
     {
-        [JsonIgnoreSerialization]
-        // SLOT GENERATION
-        /// <summary>Should the SlotDistributionCreator recalculate the MaximumSlots of all ThroughputPoints (Airports, RouteSegments, Waypoints, Sectors)
-        /// based on the MaximumAircraftPerHour or leave them as they are? (May have been manually overridden)</summary>
-        public bool RecalculateMaximumAirportSlots { get; set; } = true;
+        // GENERAL
+
+        /// <summary>Calculate and output / helper values that can aid in troubleshooting</summary>
+        public bool HighVerbosity { get; set; } = false;
 
 
         public enum SlotGenerationMode
@@ -33,29 +32,29 @@ namespace CTPSimulator
             VoteProportional
         }
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public SlotGenerationMode IntendedSlotGenerationMode { get; set; } = SlotGenerationMode.MaximizeSlots;
 
         [JsonIgnore]
         public List<string> SlotGenerationOutputComments { get; set; } = new();
 
-        [JsonIgnoreSimulateEventSerialization]
+        [JsonIgnoreOnSimulateEventSerialization]
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
         public string SlotGenerationOutputCommentary { get; set; } = string.Empty;
 
 
         // SIMULATION
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public double DepartureTimeWindowOffsetSynchronizationLongitude { get; set; } = -30;
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public uint SimulationAnalysisResolutionInMinutes { get; set; } = 2;
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         /// <summary>Should the simulation try to use the weather forecast data of the actual event day (only available about 16 days in advance)?
         /// Warning: Initially loading the forecast data might take a few minutes.
         /// If false or if no forecast data is available, the data set will fall back to statistical average values.</summary>
-        public bool ShouldSimulationUseActualWeatherForecastData { get; set; }
+        public bool ShouldSimulationUseActualWeatherForecastData { get; set; } = false;
 
         public enum DepartureTimeWindowOffsetsCalculationMode
         {
@@ -65,13 +64,13 @@ namespace CTPSimulator
             RouteAverage
         }
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public DepartureTimeWindowOffsetsCalculationMode IntendedDepartureTimeWindowOffsetsCalculationMode { get; set; } = DepartureTimeWindowOffsetsCalculationMode.EarliestRoutes;
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public TimeOnly DepartureTimeWindowOffsetSynchronizationTimeOfDay { get; set; } = new TimeOnly(16, 0);
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public bool CalculateThroughputDataOnlyForManuallyProvidedSectors { get; set; } = true;
 
 
@@ -82,25 +81,25 @@ namespace CTPSimulator
             AllWaypoints
         }
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public WaypointThroughputCalculationMode IntendedWaypointThroughputCalculationMode { get; set; } = WaypointThroughputCalculationMode.FirstWaypointsOfNATRouteSegmentsOnly;
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public double ThresholdToCheckIfAirplaneIsCountedAtWaypointInNm = 5d;
 
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public double CalculationFallbackGroundSpeed { get; set; } = 300d;
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         /// <summary>Should we use an ellipsoid earth model for more precise but more performance-hungry distance calculations?</summary>
-        public bool HighSimulationAccuracy { get; set; }
+        public bool HighSimulationAccuracy { get; set; } = false;
 
 
         [JsonIgnore]
         public List<string> SimulationOutputComments { get; set; } = new();
 
-        [JsonIgnoreCreateSlotDistributionSerialization]
+        [JsonIgnoreOnCreateSlotDistributionSerialization]
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
         public string SimulationOutputCommentary { get; set; } = string.Empty;
     }

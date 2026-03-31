@@ -18,46 +18,46 @@ namespace CTPSimulator
         public uint RouteRevision { get; set; }
         public uint SlotRevision { get; set; }
 
-        [JsonIgnoreSerialization]
+        [JsonOnlyOnHighVerbositySerialization]
         public DateOnly Date { get; set; }
 
-        [JsonIgnoreSerialization]
+        [JsonOnlyOnHighVerbositySerialization]
         public TimeSpan DepartureTimeWindow { get; set; } = TimeSpan.FromHours(3); // how long will departure airports depart for?
 
 
         public SimulatorCalculationParameters CalculationParameters { get; set; } = new();
 
 
-        // througput points
-        [JsonIgnoreCreateSlotDistributionSerialization]
+        // throughput points
+        [JsonIgnoreOnCreateSlotDistributionSerialization]
         public List<Airport> Airports { get; set; } = new();
 
         [JsonIgnore]
         public Dictionary<ulong, Airport> AirportsById = new();
 
-        [JsonIgnoreCreateSlotDistributionSerialization]
+        [JsonIgnoreOnCreateSlotDistributionSerialization]
         public List<Location> Waypoints { get; set; } = new();
 
         [JsonIgnore]
         public Dictionary<ulong, Location> WaypointsById = new();
 
-        [JsonIgnoreCreateSlotDistributionSerialization]
+        [JsonIgnoreOnCreateSlotDistributionSerialization]
         public List<RouteSegment> RouteSegments { get; set; } = new();
 
         [JsonIgnore]
         public Dictionary<ulong, RouteSegment> RouteSegmentsById = new();
 
-        [JsonIgnoreCreateSlotDistributionSerialization]
+        [JsonIgnoreOnCreateSlotDistributionSerialization]
         public List<Sector> Sectors { get; set; } = new();
 
         [JsonIgnore]
         public Dictionary<ulong, Sector> SectorsById = new();
 
-        [JsonIgnoreCreateSlotDistributionSerialization]
-        public List<TagLimit> TagLimits { get; set; } = new();
+        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        public List<ThroughputPoint> TagLimits { get; set; } = new();
 
         [JsonIgnore]
-        public Dictionary<ulong, TagLimit> TagLimitsById = new();
+        public Dictionary<ulong, ThroughputPoint> TagLimitsById = new();
 
 
         // values populated by the simulator
@@ -72,34 +72,16 @@ namespace CTPSimulator
 
 
         // values / functions only for the simulator internally
-        public void ReCalculateMaximumThroughputPointSlots()
-        {
-            // Airports: MaximumSlots is provided directly from the DB, do not recalculate
-            foreach (var waypoint in Waypoints) CalculateMaximumThroughputPointSlots(waypoint);
-            foreach (var routeSegment in RouteSegments) CalculateMaximumThroughputPointSlots(routeSegment);
-            foreach (var sector in Sectors) CalculateMaximumThroughputPointSlots(sector);
-        }
-        private void CalculateMaximumThroughputPointSlots(ThroughputPoint throughputPoint)
-        {
-            if (throughputPoint.MaximumAircraftPerHour >= 65535)
-            {
-                throughputPoint.MaximumSlots = 65535; // unlimited sentinel
-                return;
-            }
-            var calculated = (uint)(throughputPoint.MaximumAircraftPerHour * DepartureTimeWindow.TotalHours);
-            throughputPoint.MaximumSlots = (ushort)Math.Min(65534, calculated);
-        }
-
         [JsonIgnore]
-        private DateTime? _synchronizationDateTime;
-        [JsonIgnore]
-        public DateTime SynchronizationDateTime
+        private DateTimeOffset? _synchronizationDateTime;
+        [JsonOnlyOnHighVerbositySerialization]
+        public DateTimeOffset SynchronizationDateTime
         {
             get
             {
                 if (!_synchronizationDateTime.HasValue)
                 {
-                    _synchronizationDateTime = Date.ToDateTime(CalculationParameters.DepartureTimeWindowOffsetSynchronizationTimeOfDay);
+                    _synchronizationDateTime = Date.ToDateTime(CalculationParameters.DepartureTimeWindowOffsetSynchronizationTimeOfDay, DateTimeKind.Utc);
                 }
                 return _synchronizationDateTime.Value;
             }
@@ -109,12 +91,14 @@ namespace CTPSimulator
 
     public abstract class ThroughputPoint
     {
+        const int InfinityMarker = 65535;
+
         // values coming from the database
         public ulong Id { get; set; }
 
         public string Identifier { get; set; } = string.Empty; // for example SPESA or EDDF or "PORTI_BOS_1", or oceanic track "M" or "EHAA" for sectors
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public ushort MaximumAircraftPerHour { get; set; } = 20; // default for waypoints and route segments, airports and sectors will override this
 
         public ushort MaximumSlots { get; set; }
@@ -122,40 +106,40 @@ namespace CTPSimulator
 
         // values populated by the simulator
         [JsonIgnore]
-        public Dictionary<int, List<Slot>> SlotsAnalysisFramesViaMinutesFromSynchronizationTimeInternal { get; set; } = new();
+        public Dictionary<int, List<Slot>> AnalysisFramesViaMinutesFromSynchronizationTimeSlots { get; set; } = new();
 
-        [JsonIgnoreCreateSlotDistributionSerialization]
-        public Dictionary<int, List<ulong>> SlotsAnalysisFramesViaMinutesFromSynchronizationTime { get; set; } = new();
+        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        public Dictionary<int, List<ulong>> AnalysisFramesViaMinutesFromSynchronizationTimeSlotIds { get; set; } = new();
 
         // values / functions only for the simulator internally
         [JsonIgnore]
         public ushort SlotsAllocated { get; set; }
 
         [JsonIgnore]
-        public int SlotsStillAvailable => MaximumSlots >= 65535 ? int.MaxValue : MaximumSlots - SlotsAllocated;
+        public int SlotsStillAvailable => MaximumSlots >= InfinityMarker ? int.MaxValue : MaximumSlots - SlotsAllocated;
 
         [JsonIgnore]
-        public bool AreSlotsStillAvailable => MaximumSlots >= 65535 || SlotsAllocated < MaximumSlots;
+        public bool AreSlotsStillAvailable => MaximumSlots >= InfinityMarker || SlotsAllocated < MaximumSlots;
     }
 
     public class Location : ThroughputPoint // waypoint or airport
     {
         // values coming from the database
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public double Latitude { get; set; }
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public double Longitude { get; set; }
     }
 
     public class Airport : Location
     {
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public ushort NumberOfVotes { get; set; }
 
-        [JsonIgnoreCreateSlotDistributionSerialization]
+        [JsonIgnoreOnCreateSlotDistributionSerialization]
         // values populated by the simulator
-        public DateTime DepartureTimeWindowStart { get; set; }
+        public DateTimeOffset DepartureTimeWindowStart { get; set; }
 
         [JsonIgnore]
         public List<RouteSegment> ConnectingPrimaryRouteSegments { get; set; } = new();
@@ -173,35 +157,35 @@ namespace CTPSimulator
     public class RouteSegment : ThroughputPoint
     {
         // values coming from the database
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public string RouteString { get; set; } = string.Empty; // for example "MARUN Y150 TOLGI SAS P605 NOLGO" or "RESNO 5520N 5530N 5540N 5550N LOMSI"
 
-        [JsonIgnoreSerialization]
-        public string RouteSegmentGroup { get; set; } = string.Empty; // for example NAT or EMEA
+        [JsonIgnoreOnSerialization]
+        public string Group { get; set; } = string.Empty; // for example NAT or EMEA
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public string Color { get; set; } = string.Empty;
 
-        [JsonIgnoreSerialization]
+        [JsonIgnoreOnSerialization]
         public bool Enabled { get; set; } = true;
 
-        [JsonIgnoreSerialization]
-        public List<ulong> RouteSegmentTagIds { get; set; } = new();
+        [JsonIgnoreOnSerialization]
+        public List<ulong> TagLimitIds { get; set; } = new();
 
         [JsonIgnore]
-        public List<TagLimit> RouteSegmentTagLimitsInternal { get; set; } = new();
+        public List<ThroughputPoint> TagLimits { get; set; } = new();
 
         [JsonIgnore]
-        public List<Sector> ProvidedFacilityProgressionInternal { get; set; } = new();
+        public List<Sector> ProvidedFacilityProgression { get; set; } = new();
 
-        [JsonIgnoreSerialization]
-        public List<ulong> ProvidedFacilityProgression { get; set; } = new();
+        [JsonIgnoreOnSerialization]
+        public List<ulong> ProvidedFacilityProgressionIds { get; set; } = new();
 
         [JsonIgnore]
-        public List<Location> LocationsInternal { get; set; } = new(); // can be waypoints or airports
+        public List<Location> Locations { get; set; } = new(); // can be waypoints or airports
 
-        [JsonIgnoreSerialization]
-        public List<ulong> Locations { get; set; } = new();
+        [JsonIgnoreOnSerialization]
+        public List<ulong> LocationIds { get; set; } = new();
 
         [JsonIgnore]
         /// <summary>
@@ -211,7 +195,7 @@ namespace CTPSimulator
 
         public void CheckValidity()
         {
-            if (LocationsInternal.Count < 2) throw new ArgumentException($"Route segment {Identifier} has invalid number of Locations (a minimum of 2 is required).");
+            if (Locations.Count < 2) throw new ArgumentException($"Route segment {Identifier} has invalid number of Locations (a minimum of 2 is required).");
         }
     }
 
@@ -219,19 +203,6 @@ namespace CTPSimulator
     {
         [JsonIgnore]
         public List<SectorBoundary> SectorBoundaries { get; set; } = new List<SectorBoundary>();
-    }
-
-    public class TagLimit
-    {
-        public ulong Id { get; set; }
-        public string Tag { get; set; } = string.Empty;
-        public ushort MaximumSlots { get; set; }
-
-        [JsonIgnore]
-        public ushort SlotsAllocated { get; set; }
-
-        [JsonIgnore]
-        public bool AreSlotsStillAvailable => MaximumSlots >= 65535 || SlotsAllocated < MaximumSlots;
     }
 
     public class SectorBoundary
@@ -249,31 +220,34 @@ namespace CTPSimulator
 
         // values populated by the simulator
         [JsonIgnore]
-        public List<RouteSegment> RouteSegmentsInternal { get; set; } = new();
+        public List<RouteSegment> RouteSegments { get; set; } = new();
 
-        public List<ulong> RouteSegments { get; set; } = new();
+        public List<ulong> RouteSegmentIds { get; set; } = new();
 
-        [JsonIgnoreCreateSlotDistributionSerialization]
-        public DateTime DepartureTime { get; set; }
+        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        public DateTimeOffset DepartureTime { get; set; }
 
-        [JsonIgnoreCreateSlotDistributionSerialization]
-        public DateTime ProjectedArrivalTime { get; set; }
+        [JsonIgnoreOnCreateSlotDistributionSerialization]
+        public DateTimeOffset ProjectedArrivalTime { get; set; }
 
-        [JsonIgnore]
+        [JsonOnlyOnHighVerbositySerialization]
         public TimeSpan ProjectedFlightTime => ProjectedArrivalTime - DepartureTime;
 
         [JsonIgnore]
-        public Airport DepartureAirportInternal { get; set; }
+        public Airport DepartureAirport { get; set; }
 
-        public ulong DepartureAirport { get; set; }
+        public ulong DepartureAirportId { get; set; }
 
         [JsonIgnore]
-        public Airport ArrivalAirportInternal { get; set; }
+        public Airport ArrivalAirport { get; set; }
 
-        public ulong ArrivalAirport { get; set; }
+        public ulong ArrivalAirportId { get; set; }
 
         [JsonIgnore]
         public TimeSpan TimeUntilSynchronizationLongitudeCrossing { get; set; }
+
+        [JsonOnlyOnHighVerbositySerialization]
+        public double RoutingDistance { get; set; }
 
         // a bunch of values must be stored that are outside the scope of the simulator, like
         // CID:

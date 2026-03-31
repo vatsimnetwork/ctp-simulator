@@ -10,7 +10,7 @@ namespace CTPSimulatorOfflineTester
     {
         static async Task Main(string[] args)
         {
-            var vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(File.ReadAllText("response_1774921370528.json"));
+            var vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(File.ReadAllText("response_1774968245894.json"));
             JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
 
             //var vatsimEvent = TestingDataLoader.Load("25W");
@@ -53,7 +53,7 @@ namespace CTPSimulatorOfflineTester
                 List<string> rowContent = [departureAirport.Identifier];
                 foreach (var arrivalAirport in vatsimEvent.ArrivalAirports)
                 {
-                    rowContent.Add(vatsimEvent.Slots.Count(s => s.DepartureAirportInternal == departureAirport && s.ArrivalAirportInternal == arrivalAirport).ToString());
+                    rowContent.Add(vatsimEvent.Slots.Count(s => s.DepartureAirport == departureAirport && s.ArrivalAirport == arrivalAirport).ToString());
                 }
                 table.AddRow(rowContent.ToArray());
             }
@@ -64,7 +64,7 @@ namespace CTPSimulatorOfflineTester
 
             JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
             JsonWrapping.WrapSlotGenerationOutputCommentary(vatsimEvent);
-            var settings = JsonWrapping.CreateSlotDistributionSerializationSettings;
+            var settings = JsonWrapping.SerializationSettings(JsonWrapping.Action.CreateSlotDistribution, true);
             settings.Formatting = Formatting.Indented;
             var vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, settings);
             File.WriteAllText("createSlotDistribution.json", vatsimEventJson);
@@ -84,7 +84,7 @@ namespace CTPSimulatorOfflineTester
 
             JsonWrapping.WrapSimulationOutputCommentary(vatsimEvent);
             JsonWrapping.WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(vatsimEvent);
-            settings = JsonWrapping.SimulateEventSerializationSettings;
+            settings = JsonWrapping.SerializationSettings(JsonWrapping.Action.SimulateEvent, true);
             settings.Formatting = Formatting.Indented;
             vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, settings);
             File.WriteAllText("simulateEvent.json", vatsimEventJson);

@@ -42,7 +42,7 @@ namespace CTPSimulatorOfflineTester
             {
                 var splits = line.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 if (splits.Length != 3) continue;
-                var routeSegment = new RouteSegment() { Identifier = splits[0], RouteString = splits[1], RouteSegmentGroup = splits[2] };
+                var routeSegment = new RouteSegment() { Identifier = splits[0], RouteString = splits[1], Group = splits[2] };
                 foreach (var waypoint in splits[1].Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 {
                     if (Char.IsDigit(waypoint.Last()) || waypoint == "DCT") continue; // exclude airways and directs
@@ -51,7 +51,7 @@ namespace CTPSimulatorOfflineTester
                         location = new Location() { Identifier = waypoint };
                         locations.Add(waypoint, location);
                     }
-                    routeSegment.LocationsInternal.Add(location);
+                    routeSegment.Locations.Add(location);
                     vatsimEvent.Waypoints.Add(location);
                 }
                 vatsimEvent.RouteSegments.Add(routeSegment);

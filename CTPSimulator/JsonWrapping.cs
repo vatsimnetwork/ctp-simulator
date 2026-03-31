@@ -9,34 +9,37 @@ namespace CTPSimulator
 {
     public static class JsonWrapping
     {
-        public static readonly JsonSerializerSettings CreateSlotDistributionSerializationSettings = new() { ContractResolver = new JsonCreateSlotDistributionPropertiesResolver() };
-        public static readonly JsonSerializerSettings SimulateEventSerializationSettings = new() { ContractResolver = new JsonSimulateEventPropertiesResolver() };
-        public class JsonIgnoreSerializationAttribute : Attribute { }
-        public class JsonIgnoreCreateSlotDistributionSerializationAttribute : Attribute { }
-        class JsonCreateSlotDistributionPropertiesResolver : DefaultContractResolver
+        public enum Action { CreateSlotDistribution, SimulateEvent }
+        public static JsonSerializerSettings SerializationSettings(Action action, bool highVerbosity) => new() { ContractResolver = new PropertiesResolver(action, highVerbosity) };
+        public class JsonIgnoreOnSerializationAttribute : Attribute { }
+        public class JsonIgnoreOnCreateSlotDistributionSerializationAttribute : Attribute { }
+        public class JsonIgnoreOnSimulateEventSerializationAttribute : Attribute { }
+        public class JsonOnlyOnHighVerbositySerializationAttribute : Attribute { }
+
+        class PropertiesResolver : DefaultContractResolver
         {
-            protected override List<MemberInfo> GetSerializableMembers(Type objectType)
+            Action Action { get; }
+            bool HighVerbosity { get; }
+            public PropertiesResolver(Action action, bool highVerbosity)
             {
-                //Return properties that do NOT have the JsonIgnoreSerializationAttribute
-                return objectType.GetProperties()
-                                 .Where(pi => !Attribute.IsDefined(pi, typeof(JsonIgnoreSerializationAttribute)) &&
-                                 !Attribute.IsDefined(pi, typeof(JsonIgnoreCreateSlotDistributionSerializationAttribute)))
-                                 .ToList<MemberInfo>();
+                Action = action;
+                HighVerbosity = highVerbosity;
             }
-        }
-        public class JsonIgnoreSimulateEventSerializationAttribute : Attribute { }
-        class JsonSimulateEventPropertiesResolver : DefaultContractResolver
-        {
+
             protected override List<MemberInfo> GetSerializableMembers(Type objectType)
             {
-                //Return properties that do NOT have the JsonIgnoreSerializationAttribute
-                return objectType.GetProperties()
-                                 .Where(pi => !Attribute.IsDefined(pi, typeof(JsonIgnoreSerializationAttribute)) &&
-                                 !Attribute.IsDefined(pi, typeof(JsonIgnoreSimulateEventSerializationAttribute)))
-                                 .ToList<MemberInfo>();
+                var properties = objectType.GetProperties().Where(p => !Attribute.IsDefined(p, typeof(JsonIgnoreOnSerializationAttribute)));
+                if (!HighVerbosity) properties = properties.Where(p => !Attribute.IsDefined(p, typeof(JsonOnlyOnHighVerbositySerializationAttribute)));
+
+                if (Action == Action.CreateSlotDistribution) properties = properties.Where(p => !Attribute.IsDefined(p, typeof(JsonIgnoreOnCreateSlotDistributionSerializationAttribute)));
+                else if (Action == Action.SimulateEvent) properties = properties.Where(p => !Attribute.IsDefined(p, typeof(JsonIgnoreOnSimulateEventSerializationAttribute)));
+
+                return properties.ToList<MemberInfo>();
             }
         }
 
+
+        // wrapping and unwrapping
         public static void UnwrapAllRouteSegmentLocations(VATSIMEvent vatsimEvent)
         {
             foreach (var airport in vatsimEvent.Airports)
@@ -53,10 +56,10 @@ namespace CTPSimulator
             // unwrap ids
             foreach (var routeSegment in vatsimEvent.RouteSegments)
             {
-                foreach (var locationId in routeSegment.Locations)
+                foreach (var locationId in routeSegment.LocationIds)
                 {
-                    if (vatsimEvent.AirportsById.TryGetValue(locationId, out var airport)) routeSegment.LocationsInternal.Add(airport);
-                    else if (vatsimEvent.WaypointsById.TryGetValue(locationId, out var waypoint)) routeSegment.LocationsInternal.Add(waypoint);
+                    if (vatsimEvent.AirportsById.TryGetValue(locationId, out var airport)) routeSegment.Locations.Add(airport);
+                    else if (vatsimEvent.WaypointsById.TryGetValue(locationId, out var waypoint)) routeSegment.Locations.Add(waypoint);
                     else throw new ArgumentException("RouteSegment location Id not found: " + locationId);
                 }
             }
@@ -71,9 +74,9 @@ namespace CTPSimulator
 
             foreach (var routeSegment in vatsimEvent.RouteSegments)
             {
-                foreach (var sectorId in routeSegment.ProvidedFacilityProgression)
+                foreach (var sectorId in routeSegment.ProvidedFacilityProgressionIds)
                 {
-                    if (vatsimEvent.SectorsById.TryGetValue(sectorId, out var sector)) routeSegment.ProvidedFacilityProgressionInternal.Add(sector);
+                    if (vatsimEvent.SectorsById.TryGetValue(sectorId, out var sector)) routeSegment.ProvidedFacilityProgression.Add(sector);
                     else throw new ArgumentException("RouteSegment ProvidedFacilityProgression sector Id not found: " + sectorId);
                 }
             }
@@ -85,10 +88,10 @@ namespace CTPSimulator
 
             foreach (var routeSegment in vatsimEvent.RouteSegments)
             {
-                foreach (var tagId in routeSegment.RouteSegmentTagIds)
+                foreach (var tagId in routeSegment.TagLimitIds)
                 {
                     if (vatsimEvent.TagLimitsById.TryGetValue(tagId, out var tagLimit))
-                        routeSegment.RouteSegmentTagLimitsInternal.Add(tagLimit);
+                        routeSegment.TagLimits.Add(tagLimit);
                     // Tags without a limit entry are simply ignored — no limit means unlimited
                 }
             }
@@ -126,14 +129,14 @@ namespace CTPSimulator
 
             foreach (var slot in vatsimEvent.Slots)
             {
-                if (vatsimEvent.AirportsById.TryGetValue(slot.DepartureAirport, out var airport)) slot.DepartureAirportInternal = airport;
-                else throw new ArgumentException("Slot DepartureAirport Id not found: " + slot.DepartureAirport);
-                if (vatsimEvent.AirportsById.TryGetValue(slot.ArrivalAirport, out airport)) slot.ArrivalAirportInternal = airport;
-                else throw new ArgumentException("Slot ArrivalAirport Id not found: " + slot.ArrivalAirport);
+                if (vatsimEvent.AirportsById.TryGetValue(slot.DepartureAirportId, out var airport)) slot.DepartureAirport = airport;
+                else throw new ArgumentException("Slot DepartureAirport Id not found: " + slot.DepartureAirportId);
+                if (vatsimEvent.AirportsById.TryGetValue(slot.ArrivalAirportId, out airport)) slot.ArrivalAirport = airport;
+                else throw new ArgumentException("Slot ArrivalAirport Id not found: " + slot.ArrivalAirportId);
 
-                foreach (var routeSegmentId in slot.RouteSegments)
+                foreach (var routeSegmentId in slot.RouteSegmentIds)
                 {
-                    if (vatsimEvent.RouteSegmentsById.TryGetValue(routeSegmentId, out var routeSegment)) slot.RouteSegmentsInternal.Add(routeSegment);
+                    if (vatsimEvent.RouteSegmentsById.TryGetValue(routeSegmentId, out var routeSegment)) slot.RouteSegments.Add(routeSegment);
                     else throw new ArgumentException("Slot RouteSegment Id not found: " + routeSegmentId);
                 }
             }
@@ -142,9 +145,9 @@ namespace CTPSimulator
         {
             foreach (var slot in vatsimEvent.Slots)
             {
-                slot.DepartureAirport = slot.DepartureAirportInternal.Id;
-                slot.ArrivalAirport = slot.ArrivalAirportInternal.Id;
-                slot.RouteSegments = slot.RouteSegmentsInternal.Select(rs => rs.Id).ToList();
+                slot.DepartureAirportId = slot.DepartureAirport.Id;
+                slot.ArrivalAirportId = slot.ArrivalAirport.Id;
+                slot.RouteSegmentIds = slot.RouteSegments.Select(rs => rs.Id).ToList();
             }
         }
         public static void WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(VATSIMEvent vatsimEvent)
@@ -152,9 +155,9 @@ namespace CTPSimulator
             List<ThroughputPoint> throughputPoints = [.. vatsimEvent.Waypoints, .. vatsimEvent.RouteSegments, .. vatsimEvent.Airports, .. vatsimEvent.Sectors];
             foreach (var throughputPoint in throughputPoints)
             {
-                foreach (var timeSlice in throughputPoint.SlotsAnalysisFramesViaMinutesFromSynchronizationTimeInternal)
+                foreach (var timeSlice in throughputPoint.AnalysisFramesViaMinutesFromSynchronizationTimeSlots)
                 {
-                    throughputPoint.SlotsAnalysisFramesViaMinutesFromSynchronizationTime[timeSlice.Key] = timeSlice.Value.Select(s => s.Id).ToList();
+                    throughputPoint.AnalysisFramesViaMinutesFromSynchronizationTimeSlotIds[timeSlice.Key] = timeSlice.Value.Select(s => s.Id).ToList();
                 }
             }
         }
