@@ -12,8 +12,8 @@ namespace CTPSimulator
         public enum Action { CreateSlotDistribution, SimulateEvent }
         public static JsonSerializerSettings SerializationSettings(Action action, bool highVerbosity) => new() { ContractResolver = new PropertiesResolver(action, highVerbosity) };
         public class JsonIgnoreOnSerializationAttribute : Attribute { }
-        public class JsonIgnoreOnCreateSlotDistributionSerializationAttribute : Attribute { }
-        public class JsonIgnoreOnSimulateEventSerializationAttribute : Attribute { }
+        public class JsonOnlyOnSimulateEventSerializationAttribute : Attribute { }
+        public class JsonOnlyOnCreateSlotDistributionSerializationAttribute : Attribute { }
         public class JsonOnlyOnHighVerbositySerializationAttribute : Attribute { }
 
         class PropertiesResolver : DefaultContractResolver
@@ -31,8 +31,8 @@ namespace CTPSimulator
                 var properties = objectType.GetProperties().Where(p => !Attribute.IsDefined(p, typeof(JsonIgnoreOnSerializationAttribute)));
                 if (!HighVerbosity) properties = properties.Where(p => !Attribute.IsDefined(p, typeof(JsonOnlyOnHighVerbositySerializationAttribute)));
 
-                if (Action == Action.CreateSlotDistribution) properties = properties.Where(p => !Attribute.IsDefined(p, typeof(JsonIgnoreOnCreateSlotDistributionSerializationAttribute)));
-                else if (Action == Action.SimulateEvent) properties = properties.Where(p => !Attribute.IsDefined(p, typeof(JsonIgnoreOnSimulateEventSerializationAttribute)));
+                if (Action != Action.CreateSlotDistribution) properties = properties.Where(p => !Attribute.IsDefined(p, typeof(JsonOnlyOnCreateSlotDistributionSerializationAttribute)));
+                if (Action != Action.SimulateEvent) properties = properties.Where(p => !Attribute.IsDefined(p, typeof(JsonOnlyOnSimulateEventSerializationAttribute)));
 
                 return properties.ToList<MemberInfo>();
             }
@@ -162,6 +162,19 @@ namespace CTPSimulator
             }
         }
 
+        public static void WrapSlotHighVerbosityData(VATSIMEvent vatsimEvent)
+        {
+            foreach (var slot in vatsimEvent.Slots)
+            {
+                // combine route strings
+                List<string> words = string.Join(' ', slot.RouteSegments.Select(rs => rs.RouteString)).Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+                for (int i = words.Count - 1; i > 0; i--)
+                {
+                    if (words[i - 1] == words[i]) words.RemoveAt(i);
+                }
+                slot.CombinedRouteString = string.Join(' ', words);
+            }
+        }
         public static void WrapSlotGenerationOutputCommentary(VATSIMEvent vatsimEvent)
         {
             vatsimEvent.CalculationParameters.SlotGenerationOutputCommentary = string.Join(Environment.NewLine + Environment.NewLine, vatsimEvent.CalculationParameters.SlotGenerationOutputComments);

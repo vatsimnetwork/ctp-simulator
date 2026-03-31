@@ -3,6 +3,7 @@ using EmbedIO;
 using EmbedIO.Actions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Globalization;
 using System.Net;
 
 namespace CTPSimulatorContainer
@@ -13,6 +14,9 @@ namespace CTPSimulatorContainer
 
         static async Task Main(string[] args)
         {
+            // set locale
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
+
             // load sectors
             SectorBoundaries = await SectorParsing.LoadSectorBoundaries();
 
@@ -66,6 +70,7 @@ namespace CTPSimulatorContainer
                 await SlotDistributionCreator.CreateSlotDistribution(vatsimEvent);
                 JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
                 JsonWrapping.WrapSlotGenerationOutputCommentary(vatsimEvent);
+                if (vatsimEvent.CalculationParameters.HighVerbosity) JsonWrapping.WrapSlotHighVerbosityData(vatsimEvent);
                 await SerializeAndSendVATSIMEvent(vatsimEvent, context, JsonWrapping.SerializationSettings(JsonWrapping.Action.CreateSlotDistribution, vatsimEvent.CalculationParameters.HighVerbosity));
             }
             catch (Exception ex)
@@ -89,6 +94,7 @@ namespace CTPSimulatorContainer
                 await Simulator.SimulateEvent(vatsimEvent);
                 JsonWrapping.WrapSimulationOutputCommentary(vatsimEvent);
                 JsonWrapping.WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(vatsimEvent);
+                if (vatsimEvent.CalculationParameters.HighVerbosity) JsonWrapping.WrapSlotHighVerbosityData(vatsimEvent);
                 await SerializeAndSendVATSIMEvent(vatsimEvent, context, JsonWrapping.SerializationSettings(JsonWrapping.Action.SimulateEvent, vatsimEvent.CalculationParameters.HighVerbosity));
             }
             catch (Exception ex)

@@ -2,6 +2,7 @@
 using CTPSimulator;
 using Newtonsoft.Json;
 using System.Diagnostics;
+using System.Globalization;
 using System.Reflection.PortableExecutable;
 
 namespace CTPSimulatorOfflineTester
@@ -10,7 +11,14 @@ namespace CTPSimulatorOfflineTester
     {
         static async Task Main(string[] args)
         {
-            var vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(File.ReadAllText("response_1774968245894.json"));
+            // set locale
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
+
+            var vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(File.ReadAllText("response_1774973748306.json"));
+            vatsimEvent.CalculationParameters.HighVerbosity = true;
+            vatsimEvent.CalculationParameters.HighSimulationAccuracy = true;
+            vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
+
             JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
 
             //var vatsimEvent = TestingDataLoader.Load("25W");
@@ -64,6 +72,8 @@ namespace CTPSimulatorOfflineTester
 
             JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
             JsonWrapping.WrapSlotGenerationOutputCommentary(vatsimEvent);
+            JsonWrapping.WrapSlotHighVerbosityData(vatsimEvent);
+
             var settings = JsonWrapping.SerializationSettings(JsonWrapping.Action.CreateSlotDistribution, true);
             settings.Formatting = Formatting.Indented;
             var vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, settings);
