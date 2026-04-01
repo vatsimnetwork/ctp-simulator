@@ -56,6 +56,7 @@ namespace CTPSimulatorOfflineTester
             table = new ConsoleTable([string.Empty, .. vatsimEvent.ArrivalAirports.Select(da => da.Identifier)]);
             table.Options.EnableCount = false;
 
+            List<int> numbersOfRoutingsPerCityPair = new();
             foreach (var departureAirport in vatsimEvent.DepartureAirports)
             {
                 List<string> rowContent = [departureAirport.Identifier];
@@ -65,13 +66,23 @@ namespace CTPSimulatorOfflineTester
                     string cell = $"{slots.Count}";
 
                     // show number of routings for each city pair
-                    if (slots.Count > 0) cell += $" [{slots.Select(s => string.Join('-', s.RouteSegments.Select(rs => rs.Id))).Distinct().Count()}]";
-                    
+                    if (slots.Count > 0)
+                    {
+                        int routings = slots.Select(s => string.Join('-', s.RouteSegments.Select(rs => rs.Id))).Distinct().Count();
+                        cell += $" [{routings}]";
+                        numbersOfRoutingsPerCityPair.Add(routings);
+                    }
+
                     rowContent.Add(cell);
                 }
                 table.AddRow(rowContent.ToArray());
             }
             Console.WriteLine(table.ToString());
+
+            int numbersOfSlotsTarget = Math.Min(vatsimEvent.DepartureAirports.Sum(da => da.MaximumSlots), vatsimEvent.ArrivalAirports.Sum(aa => aa.MaximumSlots));
+            Console.WriteLine($"Possible slots allocated: {vatsimEvent.Slots.Count} / {numbersOfSlotsTarget} ({numbersOfSlotsTarget - vatsimEvent.Slots.Count()} remaining)");
+            Console.WriteLine($"Number of city pairs: " + vatsimEvent.Slots.Select(s => $"{s.DepartureAirport.Id}-{s.ArrivalAirport.Id}").Distinct().Count().ToString());
+            Console.WriteLine($"Average number of routings per city pair: {numbersOfRoutingsPerCityPair.Average():F1} (highest: {numbersOfRoutingsPerCityPair.Max()})");
 
             Console.WriteLine(vatsimEvent.CalculationParameters.SlotGenerationOutputCommentary);
             Console.WriteLine($"Slot calculation took {stopWatch.ElapsedMilliseconds}ms");

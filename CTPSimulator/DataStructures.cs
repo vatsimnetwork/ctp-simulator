@@ -193,6 +193,19 @@ namespace CTPSimulator
         /// </summary>
         public uint RouteRevision { get; set; }
 
+
+        // slots per airport pair helpers
+        [JsonIgnore]
+        Dictionary<(Airport, Airport), uint> NumberOfSlotsPerAirportPair { get; set; } = new();
+
+        public void AddToNumberOfSlotsPerAirportPair(Airport departure, Airport arrival)
+        {
+            var key = (departure, arrival);
+            if (NumberOfSlotsPerAirportPair.ContainsKey(key)) NumberOfSlotsPerAirportPair[key]++;
+            else NumberOfSlotsPerAirportPair[key] = 1;
+        }
+        public uint GetNumberOfSlotsPerAirportPair(Airport departure, Airport arrival) => NumberOfSlotsPerAirportPair.TryGetValue((departure, arrival), out var slots) ? slots : 0;
+
         public void CheckValidity()
         {
             if (Locations.Count < 2) throw new ArgumentException($"Route segment {Identifier} has invalid number of Locations (a minimum of 2 is required).");
