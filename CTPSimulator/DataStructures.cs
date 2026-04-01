@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using CoordinateSharp;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -257,10 +258,16 @@ namespace CTPSimulator
         public ulong ArrivalAirportId { get; set; }
 
         [JsonIgnore]
+        public bool HasBeenSetupForEnrouteCalculations { get; set; }
+
+        [JsonIgnore]
+        public List<(Location, Coordinate, RouteSegment)> RouteWaypoints { get; set; }
+
+        [JsonIgnore]
         public TimeSpan TimeUntilSynchronizationLongitudeCrossing { get; set; }
 
         [JsonOnlyOnHighVerbositySerialization, JsonOnlyOnSimulateEventSerialization]
-        public double RoutingDistanceInNm { get; set; }
+        public double RoutingDistanceInNm { get; set; } = 0;
 
         [JsonOnlyOnHighVerbositySerialization]
         public string CombinedRouteString { get; set; } = string.Empty;

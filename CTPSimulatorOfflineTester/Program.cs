@@ -18,7 +18,7 @@ namespace CTPSimulatorOfflineTester
             vatsimEvent.CalculationParameters.HighVerbosity = true;
             vatsimEvent.CalculationParameters.HighSimulationAccuracy = true;
             vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
-            vatsimEvent.CalculationParameters.IntendedSlotGenerationMode = SimulatorCalculationParameters.SlotGenerationMode.MaximizeSlots;
+            vatsimEvent.CalculationParameters.IntendedSlotGenerationMode = SimulatorCalculationParameters.SlotGenerationMode.MaximizeAirportPairs;
 
             JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
 
@@ -105,9 +105,6 @@ namespace CTPSimulatorOfflineTester
             settings.Formatting = Formatting.Indented;
             vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, settings);
             File.WriteAllText("simulateEvent.json", vatsimEventJson);
-
-            // Block this task until the program is closed.
-           await Task.Delay(-1);
         }
         static string BuildInfo(ThroughputPoint throughputPoint)
         {

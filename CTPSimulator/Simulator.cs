@@ -87,57 +87,72 @@ namespace CTPSimulator
 
         private static void SimulateSlot(VATSIMEvent vatsimEvent, DateTimeOffset departureTime, Slot slot, bool synchronizationMode, CancellationToken cancellationToken)
         {
-            // check validity of data: are there enough waypoints?
-            if (slot.RouteSegments.Count == 0) throw new ArgumentException($"Invalid number of RouteSegments provided for slot {slot.Id} (a minimum of 1 is required).");
-            foreach (var routeSegment in slot.RouteSegments) routeSegment.CheckValidity();
+            if (slot.Id == 7)
+            { }
 
-            // do all route segments connect to each other?
-            for (int r = 0; r < slot.RouteSegments.Count; r++)
+            if (!slot.HasBeenSetupForEnrouteCalculations)
             {
-                if (r == 0) // first route segment
-                {
-                    if (slot.RouteSegments[r].Locations.First() != slot.DepartureAirport) throw new ArgumentException($"Slot routing for slot {slot.Id} does not start with slot departure airport, but starts with {slot.RouteSegments[r].Locations.First().Identifier} on route {slot.RouteSegments[r].Identifier}.");
-                }
-                else // middle route segment
-                {
-                    if (slot.RouteSegments[r - 1].Locations.Last() != slot.RouteSegments[r].Locations.First()) throw new ArgumentException($"Slot routing for slot {slot.Id} has segments that do not connect to each other: {slot.RouteSegments[r - 1].Identifier} not connecting to {slot.RouteSegments[r].Identifier}.");
-                }
+                // check validity of data: are there enough waypoints?
+                if (slot.RouteSegments.Count == 0) throw new ArgumentException($"Invalid number of RouteSegments provided for slot {slot.Id} (a minimum of 1 is required).");
+                foreach (var routeSegment in slot.RouteSegments) routeSegment.CheckValidity();
 
-                if (r == slot.RouteSegments.Count - 1) // last route segment
+                // do all route segments connect to each other?
+                for (int r = 0; r < slot.RouteSegments.Count; r++)
                 {
-                    if (slot.RouteSegments[r].Locations.Last() != slot.ArrivalAirport) throw new ArgumentException($"Slot routing for slot {slot.Id} does not end with slot arrival airport, but ends with {slot.RouteSegments[r].Locations.Last().Identifier} on route {slot.RouteSegments[r].Identifier}.");
+                    if (r == 0) // first route segment
+                    {
+                        if (slot.RouteSegments[r].Locations.First() != slot.DepartureAirport) throw new ArgumentException($"Slot routing for slot {slot.Id} does not start with slot departure airport, but starts with {slot.RouteSegments[r].Locations.First().Identifier} on route {slot.RouteSegments[r].Identifier}.");
+                    }
+                    else // middle route segment
+                    {
+                        if (slot.RouteSegments[r - 1].Locations.Last() != slot.RouteSegments[r].Locations.First()) throw new ArgumentException($"Slot routing for slot {slot.Id} has segments that do not connect to each other: {slot.RouteSegments[r - 1].Identifier} not connecting to {slot.RouteSegments[r].Identifier}.");
+                    }
+
+                    if (r == slot.RouteSegments.Count - 1) // last route segment
+                    {
+                        if (slot.RouteSegments[r].Locations.Last() != slot.ArrivalAirport) throw new ArgumentException($"Slot routing for slot {slot.Id} does not end with slot arrival airport, but ends with {slot.RouteSegments[r].Locations.Last().Identifier} on route {slot.RouteSegments[r].Identifier}.");
+                    }
                 }
             }
 
             Location origin = slot.RouteSegments.First().Locations.First();
 
-            // concat locations
-            List<(Location, Coordinate, RouteSegment)> locations = [(origin, new Coordinate(origin.Latitude, origin.Longitude, new EagerLoad(false)), slot.RouteSegments.First())];
-            for (int r = 0; r < slot.RouteSegments.Count; r++)
+            if (!slot.HasBeenSetupForEnrouteCalculations)
             {
-                for (int l = 1; l < slot.RouteSegments[r].Locations.Count; l++)
+                // concat locations
+                slot.RouteWaypoints = [(origin, new Coordinate(origin.Latitude, origin.Longitude, new EagerLoad(false)), slot.RouteSegments.First())];
+                for (int r = 0; r < slot.RouteSegments.Count; r++)
                 {
-                    var location = slot.RouteSegments[r].Locations[l];
-                    locations.Add((location, new Coordinate(location.Latitude, location.Longitude, new EagerLoad(false)), slot.RouteSegments[r]));
+                    for (int l = 1; l < slot.RouteSegments[r].Locations.Count; l++)
+                    {
+                        var location = slot.RouteSegments[r].Locations[l];
+                        slot.RouteWaypoints.Add((location, new Coordinate(location.Latitude, location.Longitude, new EagerLoad(false)), slot.RouteSegments[r]));
+                    }
                 }
-            }
 
-            if (vatsimEvent.CalculationParameters.HighVerbosity)
-            {
-                for (int i = 1; i < locations.Count; i++)
+                if (vatsimEvent.CalculationParameters.HighVerbosity)
                 {
-                    slot.EnrouteDistances.Add($"{locations[i - 1].Item1.Identifier} ({locations[i - 1].Item2.Latitude.DecimalDegree:F4}, {locations[i - 1].Item2.Longitude.DecimalDegree:F4}) -> " +
-                        $"{locations[i].Item1.Identifier} ({locations[i].Item2.Latitude.DecimalDegree:F4}, {locations[i].Item2.Longitude.DecimalDegree:F4}): " +
-                        $"{locations[i - 1].Item2.Get_Distance_From_Coordinate(locations[i].Item2).NauticalMiles:F2} nm");
-                }
-            }
+                    for (int i = 1; i < slot.RouteWaypoints.Count; i++)
+                    {
+                        var distance = slot.RouteWaypoints[i - 1].Item2.Get_Distance_From_Coordinate(slot.RouteWaypoints[i].Item2, vatsimEvent.CalculationParameters.SimulationEarthShape).NauticalMiles;
 
-            // calculation precision
-            Shape earthShape = vatsimEvent.CalculationParameters.HighSimulationAccuracy ? Shape.Ellipsoid : Shape.Sphere;
+                        slot.EnrouteDistances.Add($"{slot.RouteWaypoints[i - 1].Item1.Identifier} ({slot.RouteWaypoints[i - 1].Item2.Latitude.DecimalDegree:F4}, {slot.RouteWaypoints[i - 1].Item2.Longitude.DecimalDegree:F4}) -> " +
+                            $"{slot.RouteWaypoints[i].Item1.Identifier} ({slot.RouteWaypoints[i].Item2.Latitude.DecimalDegree:F4}, {slot.RouteWaypoints[i].Item2.Longitude.DecimalDegree:F4}): " +
+                            $"{distance:F2} nm");
+
+                        slot.RoutingDistanceInNm += distance;
+                    }
+                }
+
+                slot.HasBeenSetupForEnrouteCalculations = true;
+            }   
 
             // log takeoff at departure airport
-            int minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - departureTime).TotalMinutes);
-            LogSlotInThroughputPoint(slot.DepartureAirport, minuteOffset, slot);
+            if (!synchronizationMode)
+            {
+                int minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - departureTime).TotalMinutes);
+                LogSlotInThroughputPoint(slot.DepartureAirport, minuteOffset, slot);
+            }
 
             // do the calculations
             DateTimeOffset currentTime = departureTime;
@@ -153,10 +168,10 @@ namespace CTPSimulator
 
                 // shift waypoint
                 locationIndex++;
-                (Location, Coordinate, RouteSegment) nextWaypoint = locations[locationIndex + 1];
-                finalSegment = locationIndex == locations.Count - 2;
+                (Location, Coordinate, RouteSegment) nextWaypoint = slot.RouteWaypoints[locationIndex + 1];
+                finalSegment = locationIndex == slot.RouteWaypoints.Count - 2;
 
-                var distanceCalculation = currentPosition.Get_Distance_From_Coordinate(nextWaypoint.Item2, earthShape);
+                var distanceCalculation = currentPosition.Get_Distance_From_Coordinate(nextWaypoint.Item2, vatsimEvent.CalculationParameters.SimulationEarthShape);
                 double distanceToNextWaypoint = distanceCalculation.NauticalMiles;
                 double bearingToNextWaypoint = distanceCalculation.Bearing;
 
@@ -169,17 +184,16 @@ namespace CTPSimulator
 
                     // calculate this time slice
                     double timeSliceDistance = groundSpeed * timeSlice.TotalHours; // in nm
+
                     if (timeSliceDistance < distanceToNextWaypoint) // waypoint will not be reached within this time slice
                     {
                         distanceToNextWaypoint -= timeSliceDistance;
                         currentTime += timeSlice;
-                        currentPosition.Move(nextWaypoint.Item2, new Distance(timeSliceDistance, DistanceType.NauticalMiles), earthShape);
+                        currentPosition.Move(nextWaypoint.Item2, bearingToNextWaypoint, vatsimEvent.CalculationParameters.SimulationEarthShape);
 
                         // we are not in synchronization mode (so log the throughput data)
                         if (!synchronizationMode)
                         {
-                            slot.RoutingDistanceInNm += timeSliceDistance;
-
                             // log this into sectors
                             List<Sector> sectorsToBeChecked;
                             if (vatsimEvent.CalculationParameters.CalculateThroughputDataOnlyForManuallyProvidedSectors)
@@ -202,7 +216,7 @@ namespace CTPSimulator
                             }
 
                             // log sectors
-                            minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
+                            int minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
                             foreach (Sector sector in sectorsToBeChecked)
                             {
                                 cancellationToken.ThrowIfCancellationRequested();
@@ -234,8 +248,8 @@ namespace CTPSimulator
 
                                 foreach (var waypoint in waypointsToCheck)
                                 {
-                                    if (CheckIfPositionIsCloseToAnotherPosition(currentPosition, waypoint.Latitude, waypoint.Longitude, 
-                                        earthShape, vatsimEvent.CalculationParameters.ThresholdToCheckIfAirplaneIsCountedAtWaypointInNm))
+                                    if (CheckIfPositionIsCloseToAnotherPosition(currentPosition, waypoint.Latitude, waypoint.Longitude,
+                                        vatsimEvent.CalculationParameters.SimulationEarthShape, vatsimEvent.CalculationParameters.ThresholdToCheckIfAirplaneIsCountedAtWaypointInNm))
                                     {
                                         LogSlotInThroughputPoint(waypoint, minuteOffset, slot);
                                     }
@@ -268,8 +282,7 @@ namespace CTPSimulator
                         else if (!synchronizationMode) // final segment: log arrival time
                         {
                             slot.ProjectedArrivalTime = currentTime;
-                            slot.RoutingDistanceInNm += distanceToNextWaypoint;
-                            minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
+                            int minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
                             LogSlotInThroughputPoint(slot.ArrivalAirport, minuteOffset, slot);
                         }
 

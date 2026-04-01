@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using CoordinateSharp;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -80,6 +81,11 @@ namespace CTPSimulator
         [JsonIgnoreOnSerialization]
         /// <summary>Should we use an ellipsoid earth model for more precise but more performance-hungry distance calculations?</summary>
         public bool HighSimulationAccuracy { get; set; } = true;
+
+        // calculation precision
+        [JsonIgnore]
+        public Shape SimulationEarthShape => HighSimulationAccuracy ? Shape.Ellipsoid : Shape.Sphere;
+
 
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
         [JsonOnlyOnSimulateEventSerialization]
