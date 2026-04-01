@@ -35,25 +35,31 @@ namespace CTPSimulator
             }
         }
 
+        // A primary segment is valid if its own tags/sectors are within limits.
+        // Note: primary segments have MaximumSlots=0 (unlimited) so we do NOT check AreSlotsStillAvailable on them.
+        static bool RouteSegmentSectorsAndTagsHaveAvailableSlots(RouteSegment r) =>
+            !r.TagLimits.Any(tl => !tl.AreSlotsStillAvailable) &&
+            !r.ProvidedFacilityProgression.Any(s => !s.AreSlotsStillAvailable);
+
         public static async Task CreateSlotDistribution(VATSIMEvent vatsimEvent, CancellationToken cancellationToken = default)
         {
             // prepare data
-            vatsimEvent.DepartureAirports = vatsimEvent.Airports.Where(a => vatsimEvent.RouteSegments.Exists(r => r.Locations.First() == a)).ToList();
-            vatsimEvent.ArrivalAirports = vatsimEvent.Airports.Where(a => vatsimEvent.RouteSegments.Exists(r => r.Locations.Last() == a)).ToList();
+            vatsimEvent.DepartureAirports = vatsimEvent.Airports.Where(a => vatsimEvent.RouteSegments.Any(r => r.Locations.First() == a)).ToList();
+            vatsimEvent.ArrivalAirports = vatsimEvent.Airports.Where(a => vatsimEvent.RouteSegments.Any(r => r.Locations.Last() == a)).ToList();
 
             foreach (var airport in vatsimEvent.DepartureAirports)
             {
                 airport.ConnectingPrimaryRouteSegments = vatsimEvent.RouteSegments.Where(r => r.Locations.First() == airport).ToList();
 
                 airport.ConnectingSecondaryRouteSegments = vatsimEvent.RouteSegments.Where(
-                    r => airport.ConnectingPrimaryRouteSegments.Exists(pr => pr.Locations.Last() == r.Locations.First())).ToList();
+                    r => airport.ConnectingPrimaryRouteSegments.Any(pr => pr.Locations.Last() == r.Locations.First())).ToList();
             }
             foreach (var airport in vatsimEvent.ArrivalAirports)
             {
                 airport.ConnectingPrimaryRouteSegments = vatsimEvent.RouteSegments.Where(r => r.Locations.Last() == airport).ToList();
 
                 airport.ConnectingSecondaryRouteSegments = vatsimEvent.RouteSegments.Where(
-                    r => airport.ConnectingPrimaryRouteSegments.Exists(tr => tr.Locations.First() == r.Locations.Last())).ToList();
+                    r => airport.ConnectingPrimaryRouteSegments.Any(tr => tr.Locations.First() == r.Locations.Last())).ToList();
             }
             foreach (var airport in vatsimEvent.Airports)
             {
@@ -69,7 +75,7 @@ namespace CTPSimulator
             }
 
             // Pre-calculate total votes for departure airports for proportional allocation
-            double totalDepartureVotes = vatsimEvent.DepartureAirports.Sum(a => (double)a.NumberOfVotes);
+            int totalDepartureVotes = vatsimEvent.DepartureAirports.Sum(da => da.NumberOfVotes);
 
             uint slotID = 0;
             while (true)
@@ -78,7 +84,7 @@ namespace CTPSimulator
 
                 // Compute how many slots have been allocated across all departure airports so far,
                 // so we can calculate each airport's proportional vote target and its deficit.
-                int totalSlotsAllocated = vatsimEvent.DepartureAirports.Sum(a => (int)a.SlotsAllocated);
+                int totalSlotsAllocated = vatsimEvent.DepartureAirports.Sum(a => a.SlotsAllocated);
 
                 // take all possible options where slots could go
                 List<SlotChoice> choices = new();
@@ -86,43 +92,42 @@ namespace CTPSimulator
                 {
                     // How far behind its vote-proportional target is this airport?
                     // Positive = underserved, negative = overserved.
-                    double voteTarget = totalDepartureVotes > 0 ? (departureAirport.NumberOfVotes / totalDepartureVotes) * totalSlotsAllocated : 0;
-                    double voteDeficit = voteTarget - departureAirport.SlotsAllocated;
+                    double voteTarget = totalDepartureVotes > 0 ? ((double)departureAirport.NumberOfVotes / totalDepartureVotes) * totalSlotsAllocated : 0;
+                    double departureVoteDeficit = voteTarget - departureAirport.SlotsAllocated;              
 
-                    // A primary segment is valid if its own tags/sectors are within limits.
-                    // Note: primary segments have MaximumSlots=0 (unlimited) so we do NOT check AreSlotsStillAvailable on them.
-                    static bool primarySegmentTagsOk(RouteSegment pr) =>
-                        !pr.TagLimits.Any(tl => !tl.AreSlotsStillAvailable) &&
-                        !pr.ProvidedFacilityProgression.Any(s => s.MaximumSlots > 0 && !s.AreSlotsStillAvailable);
-
-                    var possibleRouteSegments = departureAirport.ConnectingSecondaryRouteSegments
+                    var possibleSecondaryRouteSegments = departureAirport.ConnectingSecondaryRouteSegments
                         .Where(sr =>
                             sr.AreSlotsStillAvailable &&
+
                             !sr.TagLimits.Any(tl => !tl.AreSlotsStillAvailable) &&
-                            !sr.ProvidedFacilityProgression.Any(s => s.MaximumSlots > 0 && !s.AreSlotsStillAvailable) &&
+                            !sr.ProvidedFacilityProgression.Any(s => !s.AreSlotsStillAvailable) &&
+
                             // At least one primary departure feeder with no blocked tags/sectors exists for this oceanic entry point
                             departureAirport.ConnectingPrimaryRouteSegments
-                                .Where(pr => pr.Locations.Last() == sr.Locations.First())
-                                .Any(primarySegmentTagsOk))
+                                .Any(pr => pr.Locations.Last() == sr.Locations.First() && 
+                                RouteSegmentSectorsAndTagsHaveAvailableSlots(pr)))
                         .ToList();
-                    foreach (var routeSegment in possibleRouteSegments)
+
+                    foreach (var routeSegment in possibleSecondaryRouteSegments)
                     {
                         var possibleArrivals = vatsimEvent.ArrivalAirports
                             .Where(aa =>
                                 aa.AreSlotsStillAvailable &&
                                 aa.ConnectingSecondaryRouteSegments.Contains(routeSegment) &&
+
                                 // At least one primary arrival feeder with no blocked tags/sectors exists for this oceanic exit point
                                 aa.ConnectingPrimaryRouteSegments
-                                    .Where(pr => pr.Locations.First() == routeSegment.Locations.Last())
-                                    .Any(primarySegmentTagsOk))
-                            .ToList();
+                                    .Any(pr => pr.Locations.First() == routeSegment.Locations.Last() &&
+                                    RouteSegmentSectorsAndTagsHaveAvailableSlots(pr)))
+                                .ToList();
+
                         foreach (var arrivalAirport in possibleArrivals)
                         {
                             choices.Add(new(departureAirport, routeSegment, arrivalAirport,
-                                possibleRouteSegments.Count + possibleArrivals.Count,
+                                possibleSecondaryRouteSegments.Count + possibleArrivals.Count,
                                 departureAirport.SlotsStillAvailable + routeSegment.SlotsStillAvailable + arrivalAirport.SlotsStillAvailable,
                                 departureAirport.NumberOfVotes + arrivalAirport.NumberOfVotes,
-                                voteDeficit));
+                                departureVoteDeficit));
                         }
                     }
                 }
@@ -164,35 +169,33 @@ namespace CTPSimulator
                 var firstRouteSegment = choice.DepartureAirport.ConnectingPrimaryRouteSegments
                     .Where(pr =>
                         pr.Locations.Last() == choice.RouteSegment.Locations.First() &&
-                        !pr.TagLimits.Any(tl => !tl.AreSlotsStillAvailable) &&
-                        !pr.ProvidedFacilityProgression.Any(s => s.MaximumSlots > 0 && !s.AreSlotsStillAvailable))
+                        RouteSegmentSectorsAndTagsHaveAvailableSlots(pr))
                     .OrderBy(pr => pr.SlotsAllocated).First();
+
                 firstRouteSegment.SlotsAllocated++;
 
                 var thirdRouteSegment = choice.ArrivalAirport.ConnectingPrimaryRouteSegments
                     .Where(pr =>
                         pr.Locations.First() == choice.RouteSegment.Locations.Last() &&
-                        !pr.TagLimits.Any(tl => !tl.AreSlotsStillAvailable) &&
-                        !pr.ProvidedFacilityProgression.Any(s => s.MaximumSlots > 0 && !s.AreSlotsStillAvailable))
+                        RouteSegmentSectorsAndTagsHaveAvailableSlots(pr))
                     .OrderBy(pr => pr.SlotsAllocated).First();
+
                 thirdRouteSegment.SlotsAllocated++;
 
                 // Increment each unique tag limit and sector exactly once per slot, regardless of
                 // how many of the three route segments share the same tag/sector object.
-                var uniqueTagLimits = new HashSet<ThroughputPoint>(
-                    choice.RouteSegment.TagLimits
-                        .Concat(firstRouteSegment.TagLimits)
-                        .Concat(thirdRouteSegment.TagLimits));
-                foreach (var tl in uniqueTagLimits)
-                    tl.SlotsAllocated++;
+                var uniqueTagLimits = choice.RouteSegment.TagLimits.Concat(firstRouteSegment.TagLimits)
+                    .Concat(thirdRouteSegment.TagLimits)
+                    .Distinct();
 
-                var uniqueSectors = new HashSet<Sector>(
-                    choice.RouteSegment.ProvidedFacilityProgression
+                foreach (var tagLimit in uniqueTagLimits) tagLimit.SlotsAllocated++;
+
+                var uniqueSectors = choice.RouteSegment.ProvidedFacilityProgression
                         .Concat(firstRouteSegment.ProvidedFacilityProgression)
                         .Concat(thirdRouteSegment.ProvidedFacilityProgression)
-                        .Where(s => s.MaximumSlots > 0));
-                foreach (var s in uniqueSectors)
-                    s.SlotsAllocated++;
+                        .Distinct();
+
+                foreach (var s in uniqueSectors) s.SlotsAllocated++;
 
                 vatsimEvent.Slots.Add(new Slot()
                 {
@@ -209,10 +212,10 @@ namespace CTPSimulator
                 slotID++;
             }
 
-            foreach (var tagLimit in vatsimEvent.TagLimits.Where(t => t.MaximumSlots > 0 && t.SlotsAllocated >= t.MaximumSlots))
-                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Tag limit reached: {tagLimit.Identifier} ({tagLimit.SlotsAllocated}/{tagLimit.MaximumSlots} slots)");
-            foreach (var sector in vatsimEvent.Sectors.Where(s => s.MaximumSlots > 0 && s.SlotsAllocated >= s.MaximumSlots))
-                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Sector limit reached: {sector.Identifier} ({sector.SlotsAllocated}/{sector.MaximumSlots} slots)");
+            foreach (var tagLimit in vatsimEvent.TagLimits.Where(tl => tl.SlotsAllocated > tl.MaximumSlots))
+                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Tag limit exceeded: {tagLimit.Identifier} ({tagLimit.SlotsAllocated} / {tagLimit.MaximumSlots} slots)");
+            foreach (var sector in vatsimEvent.Sectors.Where(s => s.SlotsAllocated > s.MaximumSlots))
+                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Sector limit exceeded: {sector.Identifier} ({sector.SlotsAllocated} / {sector.MaximumSlots} slots)");
         }
     }
 }

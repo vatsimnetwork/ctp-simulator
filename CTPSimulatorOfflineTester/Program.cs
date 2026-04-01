@@ -61,7 +61,13 @@ namespace CTPSimulatorOfflineTester
                 List<string> rowContent = [departureAirport.Identifier];
                 foreach (var arrivalAirport in vatsimEvent.ArrivalAirports)
                 {
-                    rowContent.Add(vatsimEvent.Slots.Count(s => s.DepartureAirport == departureAirport && s.ArrivalAirport == arrivalAirport).ToString());
+                    var slots = vatsimEvent.Slots.FindAll(s => s.DepartureAirport == departureAirport && s.ArrivalAirport == arrivalAirport);
+                    string cell = $"{slots.Count}";
+
+                    // show number of routings for each city pair
+                    if (slots.Count > 0) cell += $" [{slots.Select(s => string.Join('-', s.RouteSegments.Select(rs => rs.Id))).Distinct().Count()}]";
+                    
+                    rowContent.Add(cell);
                 }
                 table.AddRow(rowContent.ToArray());
             }
