@@ -215,6 +215,9 @@ namespace CTPSimulator
                             // log route element
                             LogSlotInThroughputPoint(nextWaypoint.Item3, minuteOffset, slot);
 
+                            // log tag limits
+                            foreach (var tagLimit in nextWaypoint.Item3.TagLimits) LogSlotInThroughputPoint(tagLimit, minuteOffset, slot);
+
                             // check waypoints
                             if (vatsimEvent.CalculationParameters.IntendedWaypointThroughputCalculationMode != SimulatorCalculationParameters.WaypointThroughputCalculationMode.None)
                             {

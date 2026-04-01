@@ -65,8 +65,7 @@ namespace CTPSimulatorContainer
             try
             {
                 var vatsimEvent = extractVatsimEvent(context);
-                JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
-                JsonWrapping.UnwrapAllRouteSegmentFacilityProgressions(vatsimEvent);
+                JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
                 await SlotDistributionCreator.CreateSlotDistribution(vatsimEvent);
                 JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
                 if (vatsimEvent.CalculationParameters.HighVerbosity) JsonWrapping.WrapSlotHighVerbosityData(vatsimEvent);
@@ -84,8 +83,7 @@ namespace CTPSimulatorContainer
             try
             {
                 var vatsimEvent = extractVatsimEvent(context);
-                JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
-                JsonWrapping.UnwrapAllRouteSegmentFacilityProgressions(vatsimEvent);
+                JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
                 JsonWrapping.UnwrapAllSlotAirportsAndRouteSegments(vatsimEvent);
                 JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, SectorBoundaries);
 

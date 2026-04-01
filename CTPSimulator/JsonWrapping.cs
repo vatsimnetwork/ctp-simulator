@@ -40,7 +40,7 @@ namespace CTPSimulator
 
 
         // wrapping and unwrapping
-        public static void UnwrapAllRouteSegmentLocations(VATSIMEvent vatsimEvent)
+        public static void UnwrapAllRouteSegmentData(VATSIMEvent vatsimEvent)
         {
             foreach (var airport in vatsimEvent.Airports)
             {
@@ -52,6 +52,16 @@ namespace CTPSimulator
                 if (vatsimEvent.AirportsById.ContainsKey(waypoint.Id) || vatsimEvent.WaypointsById.ContainsKey(waypoint.Id)) throw new ArgumentException("Duplicate airport / waypoint Id defined: " + waypoint.Id);
                 vatsimEvent.WaypointsById[waypoint.Id] = waypoint;
             }
+            foreach (var sector in vatsimEvent.Sectors)
+            {
+                if (vatsimEvent.SectorsById.ContainsKey(sector.Id)) throw new ArgumentException("Duplicate sector Id defined: " + sector.Id);
+                vatsimEvent.SectorsById[sector.Id] = sector;
+            }
+            foreach (var tagLimit in vatsimEvent.TagLimits)
+            {
+                if (vatsimEvent.TagLimitsById.ContainsKey(tagLimit.Id)) throw new ArgumentException("Duplicate TagLimit Id defined: " + tagLimit.Id);
+                vatsimEvent.TagLimitsById[tagLimit.Id] = tagLimit;
+            }
 
             // unwrap ids
             foreach (var routeSegment in vatsimEvent.RouteSegments)
@@ -60,39 +70,19 @@ namespace CTPSimulator
                 {
                     if (vatsimEvent.AirportsById.TryGetValue(locationId, out var airport)) routeSegment.Locations.Add(airport);
                     else if (vatsimEvent.WaypointsById.TryGetValue(locationId, out var waypoint)) routeSegment.Locations.Add(waypoint);
-                    else throw new ArgumentException("RouteSegment location Id not found: " + locationId);
+                    else throw new ArgumentException("RouteSegment location Id not defined: " + locationId);
                 }
-            }
-        }
-        public static void UnwrapAllRouteSegmentFacilityProgressions(VATSIMEvent vatsimEvent)
-        {
-            foreach (var sector in vatsimEvent.Sectors)
-            {
-                if (vatsimEvent.SectorsById.ContainsKey(sector.Id)) throw new ArgumentException("Duplicate sector Id defined: " + sector.Id);
-                vatsimEvent.SectorsById[sector.Id] = sector;
-            }
 
-            foreach (var routeSegment in vatsimEvent.RouteSegments)
-            {
                 foreach (var sectorId in routeSegment.ProvidedFacilityProgressionIds)
                 {
                     if (vatsimEvent.SectorsById.TryGetValue(sectorId, out var sector)) routeSegment.ProvidedFacilityProgression.Add(sector);
-                    else throw new ArgumentException("RouteSegment ProvidedFacilityProgression sector Id not found: " + sectorId);
+                    else throw new ArgumentException("RouteSegment ProvidedFacilityProgression sector Id not defined: " + sectorId);
                 }
-            }
 
-            foreach (var tagLimit in vatsimEvent.TagLimits)
-            {
-                vatsimEvent.TagLimitsById[tagLimit.Id] = tagLimit;
-            }
-
-            foreach (var routeSegment in vatsimEvent.RouteSegments)
-            {
                 foreach (var tagId in routeSegment.TagLimitIds)
                 {
-                    if (vatsimEvent.TagLimitsById.TryGetValue(tagId, out var tagLimit))
-                        routeSegment.TagLimits.Add(tagLimit);
-                    // Tags without a limit entry are simply ignored — no limit means unlimited
+                    if (vatsimEvent.TagLimitsById.TryGetValue(tagId, out var tagLimit)) routeSegment.TagLimits.Add(tagLimit);
+                    else throw new ArgumentException("RouteSegment TagLimit Id not defined: " + tagId);
                 }
             }
         }

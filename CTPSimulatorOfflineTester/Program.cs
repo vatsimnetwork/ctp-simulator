@@ -20,7 +20,7 @@ namespace CTPSimulatorOfflineTester
             vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
             vatsimEvent.CalculationParameters.IntendedSlotGenerationMode = SimulatorCalculationParameters.SlotGenerationMode.MaximizeSlots;
 
-            JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
+            JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
 
             //var vatsimEvent = TestingDataLoader.Load("25W");
             //vatsimEvent.CalculationParameters.CalculateThroughputDataOnlyForManuallyProvidedSectors = false;
@@ -86,8 +86,6 @@ namespace CTPSimulatorOfflineTester
             settings.Formatting = Formatting.Indented;
             var vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, settings);
             File.WriteAllText("createSlotDistribution.json", vatsimEventJson);
-
-            JsonWrapping.UnwrapAllRouteSegmentFacilityProgressions(vatsimEvent);
 
             var sectorBoundaries = await SectorParsing.LoadSectorBoundaries();
             JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, sectorBoundaries);
