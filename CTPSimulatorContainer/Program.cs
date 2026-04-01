@@ -69,7 +69,6 @@ namespace CTPSimulatorContainer
                 JsonWrapping.UnwrapAllRouteSegmentFacilityProgressions(vatsimEvent);
                 await SlotDistributionCreator.CreateSlotDistribution(vatsimEvent);
                 JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
-                JsonWrapping.WrapSlotGenerationOutputCommentary(vatsimEvent);
                 if (vatsimEvent.CalculationParameters.HighVerbosity) JsonWrapping.WrapSlotHighVerbosityData(vatsimEvent);
                 await SerializeAndSendVATSIMEvent(vatsimEvent, context, JsonWrapping.SerializationSettings(JsonWrapping.Action.CreateSlotDistribution, vatsimEvent.CalculationParameters.HighVerbosity));
             }
@@ -92,7 +91,6 @@ namespace CTPSimulatorContainer
 
                 // simulate
                 await Simulator.SimulateEvent(vatsimEvent);
-                JsonWrapping.WrapSimulationOutputCommentary(vatsimEvent);
                 JsonWrapping.WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(vatsimEvent);
                 if (vatsimEvent.CalculationParameters.HighVerbosity) JsonWrapping.WrapSlotHighVerbosityData(vatsimEvent);
                 await SerializeAndSendVATSIMEvent(vatsimEvent, context, JsonWrapping.SerializationSettings(JsonWrapping.Action.SimulateEvent, vatsimEvent.CalculationParameters.HighVerbosity));

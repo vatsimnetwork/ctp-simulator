@@ -175,13 +175,5 @@ namespace CTPSimulator
                 slot.CombinedRouteString = string.Join(' ', words);
             }
         }
-        public static void WrapSlotGenerationOutputCommentary(VATSIMEvent vatsimEvent)
-        {
-            vatsimEvent.CalculationParameters.SlotGenerationOutputCommentary = string.Join(Environment.NewLine + Environment.NewLine, vatsimEvent.CalculationParameters.SlotGenerationOutputComments);
-        }
-        public static void WrapSimulationOutputCommentary(VATSIMEvent vatsimEvent)
-        {
-            vatsimEvent.CalculationParameters.SimulationOutputCommentary = string.Join(Environment.NewLine + Environment.NewLine, vatsimEvent.CalculationParameters.SimulationOutputComments);
-        }
     }
 }

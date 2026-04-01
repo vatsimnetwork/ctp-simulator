@@ -18,6 +18,7 @@ namespace CTPSimulatorOfflineTester
             vatsimEvent.CalculationParameters.HighVerbosity = true;
             vatsimEvent.CalculationParameters.HighSimulationAccuracy = true;
             vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
+            vatsimEvent.CalculationParameters.IntendedSlotGenerationMode = SimulatorCalculationParameters.SlotGenerationMode.MaximizeSlots;
 
             JsonWrapping.UnwrapAllRouteSegmentLocations(vatsimEvent);
 
@@ -56,7 +57,6 @@ namespace CTPSimulatorOfflineTester
             table = new ConsoleTable([string.Empty, .. vatsimEvent.ArrivalAirports.Select(da => da.Identifier)]);
             table.Options.EnableCount = false;
 
-            List<int> numbersOfRoutingsPerCityPair = new();
             foreach (var departureAirport in vatsimEvent.DepartureAirports)
             {
                 List<string> rowContent = [departureAirport.Identifier];
@@ -70,7 +70,6 @@ namespace CTPSimulatorOfflineTester
                     {
                         int routings = slots.Select(s => string.Join('-', s.RouteSegments.Select(rs => rs.Id))).Distinct().Count();
                         cell += $" [{routings}]";
-                        numbersOfRoutingsPerCityPair.Add(routings);
                     }
 
                     rowContent.Add(cell);
@@ -78,17 +77,9 @@ namespace CTPSimulatorOfflineTester
                 table.AddRow(rowContent.ToArray());
             }
             Console.WriteLine(table.ToString());
-
-            int numbersOfSlotsTarget = Math.Min(vatsimEvent.DepartureAirports.Sum(da => da.MaximumSlots), vatsimEvent.ArrivalAirports.Sum(aa => aa.MaximumSlots));
-            Console.WriteLine($"Possible slots allocated: {vatsimEvent.Slots.Count} / {numbersOfSlotsTarget} ({numbersOfSlotsTarget - vatsimEvent.Slots.Count()} remaining)");
-            Console.WriteLine($"Number of city pairs: " + vatsimEvent.Slots.Select(s => $"{s.DepartureAirport.Id}-{s.ArrivalAirport.Id}").Distinct().Count().ToString());
-            Console.WriteLine($"Average number of routings per city pair: {numbersOfRoutingsPerCityPair.Average():F1} (highest: {numbersOfRoutingsPerCityPair.Max()})");
-
-            Console.WriteLine(vatsimEvent.CalculationParameters.SlotGenerationOutputCommentary);
+            foreach (var comment in vatsimEvent.CalculationParameters.SlotGenerationOutputComments) Console.WriteLine(comment);
             Console.WriteLine($"Slot calculation took {stopWatch.ElapsedMilliseconds}ms");
-
             JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
-            JsonWrapping.WrapSlotGenerationOutputCommentary(vatsimEvent);
             JsonWrapping.WrapSlotHighVerbosityData(vatsimEvent);
 
             var settings = JsonWrapping.SerializationSettings(JsonWrapping.Action.CreateSlotDistribution, true);
@@ -102,14 +93,15 @@ namespace CTPSimulatorOfflineTester
             JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, sectorBoundaries);
 
             // event simulation
+            Console.WriteLine();
+
             stopWatch = Stopwatch.StartNew();
             await Simulator.SimulateEvent(vatsimEvent);
             stopWatch.Stop();
 
-            Console.WriteLine(vatsimEvent.CalculationParameters.SimulationOutputCommentary);
+            foreach (var comment in vatsimEvent.CalculationParameters.SimulationOutputComments) Console.WriteLine(comment);
             Console.WriteLine($"Event simulation took {stopWatch.ElapsedMilliseconds}ms");
 
-            JsonWrapping.WrapSimulationOutputCommentary(vatsimEvent);
             JsonWrapping.WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(vatsimEvent);
             settings = JsonWrapping.SerializationSettings(JsonWrapping.Action.SimulateEvent, true);
             settings.Formatting = Formatting.Indented;

@@ -16,31 +16,17 @@ namespace CTPSimulator
 
         public enum SlotGenerationMode
         {
-            /// <summary>
-            /// Try to squeeze as many slots out of the given set of airports and routes (fully deterministic)
-            /// </summary>
-            MaximizeSlots,
-
-            /// <summary>
-            /// Random distribution
-            /// </summary>
             Random,
-
-            /// <summary>
-            /// Distribute slots proportionally to airport vote counts, then fill remaining capacity greedily
-            /// </summary>
-            VoteProportional
+            MaximizeAirportPairs,
+            MaximizeSlots
         }
 
         [JsonIgnoreOnSerialization]
         public SlotGenerationMode IntendedSlotGenerationMode { get; set; } = SlotGenerationMode.MaximizeSlots;
 
-        [JsonIgnore]
-        public List<string> SlotGenerationOutputComments { get; set; } = new();
-
-        [JsonOnlyOnCreateSlotDistributionSerialization]
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
-        public string SlotGenerationOutputCommentary { get; set; } = string.Empty;
+        [JsonOnlyOnCreateSlotDistributionSerialization]
+        public List<string> SlotGenerationOutputComments { get; set; } = new();
 
 
         // SIMULATION
@@ -95,12 +81,8 @@ namespace CTPSimulator
         /// <summary>Should we use an ellipsoid earth model for more precise but more performance-hungry distance calculations?</summary>
         public bool HighSimulationAccuracy { get; set; } = true;
 
-
-        [JsonIgnore]
-        public List<string> SimulationOutputComments { get; set; } = new();
-
-        [JsonOnlyOnSimulateEventSerialization]
         /// <summary>Populated by the simulator to be displayed back to the user</summary>
-        public string SimulationOutputCommentary { get; set; } = string.Empty;
+        [JsonOnlyOnSimulateEventSerialization]
+        public List<string> SimulationOutputComments { get; set; } = new();
     }
 }

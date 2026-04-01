@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.Net;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -140,21 +141,23 @@ namespace CTPSimulator
                 if (choices.Count == 0) break;
 
                 SlotChoice choice;
-                if (vatsimEvent.CalculationParameters.IntendedSlotGenerationMode == SimulatorCalculationParameters.SlotGenerationMode.MaximizeSlots)
-                {
-                    // Original greedy algorithm: minimize constrained paths first, then maximize remaining capacity, then votes as tie-breaker.
-                    choice = choices
-                        .OrderBy(c => c.PossiblePaths)
-                        .ThenByDescending(c => c.CombinedSlotsAvailable)
-                        //.ThenByDescending(c => c.CombinedVotes)
-                        .First();
-                }
-                else if (vatsimEvent.CalculationParameters.IntendedSlotGenerationMode == SimulatorCalculationParameters.SlotGenerationMode.VoteProportional)
+                if (vatsimEvent.CalculationParameters.IntendedSlotGenerationMode == SimulatorCalculationParameters.SlotGenerationMode.MaximizeAirportPairs)
                 {
                     // Vote-proportional algorithm: airports furthest behind their vote-share target get priority,
                     // then fall back to the greedy criteria for tiebreaking within that airport's options.
                     choice = choices
                         .OrderByDescending(c => c.DepartureVoteDeficit + c.ArrivalVoteDeficit)
+                        .ThenByDescending(c => c.RouteSegment.GetNumberOfSlotsPerAirportPair(c.DepartureAirport, c.ArrivalAirport))
+                        .ThenBy(c => c.PossiblePaths)
+                        .ThenByDescending(c => c.CombinedSlotsAvailable)
+                        .First();
+                }
+                else if (vatsimEvent.CalculationParameters.IntendedSlotGenerationMode == SimulatorCalculationParameters.SlotGenerationMode.MaximizeSlots)
+                {
+                    // Vote-proportional algorithm: airports furthest behind their vote-share target get priority,
+                    // then fall back to the greedy criteria for tiebreaking within that airport's options.
+                    choice = choices
+                        .OrderByDescending(c => c.DepartureVoteDeficit)
                         .ThenByDescending(c => c.RouteSegment.GetNumberOfSlotsPerAirportPair(c.DepartureAirport, c.ArrivalAirport))
                         .ThenBy(c => c.PossiblePaths)
                         .ThenByDescending(c => c.CombinedSlotsAvailable)
@@ -221,9 +224,25 @@ namespace CTPSimulator
             }
 
             foreach (var tagLimit in vatsimEvent.TagLimits.Where(tl => tl.SlotsAllocated > tl.MaximumSlots))
-                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Tag limit exceeded: {tagLimit.Identifier} ({tagLimit.SlotsAllocated} / {tagLimit.MaximumSlots} slots)");
+                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Warning, tag limit exceeded: {tagLimit.Identifier} ({tagLimit.SlotsAllocated} / {tagLimit.MaximumSlots} slots)");
             foreach (var sector in vatsimEvent.Sectors.Where(s => s.SlotsAllocated > s.MaximumSlots))
-                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Sector limit exceeded: {sector.Identifier} ({sector.SlotsAllocated} / {sector.MaximumSlots} slots)");
+                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Warning, sector limit exceeded: {sector.Identifier} ({sector.SlotsAllocated} / {sector.MaximumSlots} slots)");
+
+            int numbersOfSlotsTarget = Math.Min(vatsimEvent.DepartureAirports.Sum(da => da.MaximumSlots), vatsimEvent.ArrivalAirports.Sum(aa => aa.MaximumSlots));
+            vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Possible slots allocated: {vatsimEvent.Slots.Count} / {numbersOfSlotsTarget} ({numbersOfSlotsTarget - vatsimEvent.Slots.Count()} remaining)");
+            vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Number of city pairs: " + vatsimEvent.Slots.Select(s => $"{s.DepartureAirport.Id}-{s.ArrivalAirport.Id}").Distinct().Count().ToString());
+
+            List<int> numbersOfRoutingsPerCityPair = new();
+            foreach (var departureAirport in vatsimEvent.DepartureAirports)
+            {
+                List<string> rowContent = [departureAirport.Identifier];
+                foreach (var arrivalAirport in vatsimEvent.ArrivalAirports)
+                {
+                    var slots = vatsimEvent.Slots.FindAll(s => s.DepartureAirport == departureAirport && s.ArrivalAirport == arrivalAirport);
+                    if (slots.Count > 0) numbersOfRoutingsPerCityPair.Add(slots.Select(s => string.Join('-', s.RouteSegments.Select(rs => rs.Id))).Distinct().Count());
+                }
+            }
+            vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Average number of routings per city pair: {numbersOfRoutingsPerCityPair.Average():F1} (highest: {numbersOfRoutingsPerCityPair.Max()})");
         }
 
         static bool RouteSegmentSectorsAndTagsHaveAvailableSlots(RouteSegment r) =>
