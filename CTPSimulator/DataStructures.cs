@@ -92,7 +92,7 @@ namespace CTPSimulator
 
     public class ThroughputPoint
     {
-        const int InfinityMarker = 65535;
+        public const int InfinityMarker = 65535;
 
         // values coming from the database
         public ulong Id { get; set; }

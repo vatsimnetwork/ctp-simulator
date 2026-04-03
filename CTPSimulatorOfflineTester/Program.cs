@@ -33,24 +33,43 @@ namespace CTPSimulatorOfflineTester
             stopWatch.Stop();
 
             // display the results
-            var table = new ConsoleTable("Departures", "NAT Tracks", "Arrivals");
+            var table = new ConsoleTable("Departures", "Primary", "NAT Tracks", "Tertiary", "Arrivals");
             table.Options.EnableCount = false;
 
+            var primarySegments = vatsimEvent.DepartureAirports.SelectMany(da => da.ConnectingPrimaryRouteSegments).ToList();
             var natSegments = vatsimEvent.RouteSegments.Where(rs => vatsimEvent.Airports.Exists(a => a.ConnectingSecondaryRouteSegments.Contains(rs))).ToList();
-            int rows = Math.Max(Math.Max(vatsimEvent.DepartureAirports.Count, natSegments.Count), vatsimEvent.ArrivalAirports.Count);
+            var tertiarySegments = vatsimEvent.ArrivalAirports.SelectMany(aa => aa.ConnectingPrimaryRouteSegments).ToList();
+
+            int rows = new List<int>([vatsimEvent.DepartureAirports.Count, primarySegments.Count, natSegments.Count, tertiarySegments.Count, vatsimEvent.ArrivalAirports.Count]).Max();
             for (int i = 0; i < rows; i++)
             {
                 table.AddRow(
                     i < vatsimEvent.DepartureAirports.Count ? BuildInfo(vatsimEvent.DepartureAirports[i]) : string.Empty,
+                    i < primarySegments.Count ? BuildInfo(primarySegments[i]) : string.Empty,
                     i < natSegments.Count ? BuildInfo(natSegments[i]) : string.Empty,
+                    i < tertiarySegments.Count ? BuildInfo(tertiarySegments[i]) : string.Empty,
                     i < vatsimEvent.ArrivalAirports.Count ? BuildInfo(vatsimEvent.ArrivalAirports[i]) : string.Empty);
             }
 
             table.AddRow(
                 $"{vatsimEvent.DepartureAirports.Sum(da => da.SlotsAllocated)} / {vatsimEvent.DepartureAirports.Sum(da => da.MaximumSlots)}",
-                $"{natSegments.Sum(sr => sr.SlotsAllocated)} / {natSegments.Sum(sr => sr.MaximumSlots)}",
+                string.Empty,
+                $"{natSegments.Sum(s => s.SlotsAllocated)} / {natSegments.Sum(s => s.MaximumSlots)}",
+                string.Empty,
                 $"{vatsimEvent.ArrivalAirports.Sum(aa => aa.SlotsAllocated)} / {vatsimEvent.ArrivalAirports.Sum(aa => aa.MaximumSlots) }");
 
+            Console.WriteLine(table.ToString());
+
+            // sectors and route tags
+            table = new ConsoleTable("Route Tags", "Sectors");
+            rows = Math.Max(vatsimEvent.Sectors.Count, vatsimEvent.TagLimits.Count);
+            for (int i = 0; i < rows; i++)
+            {
+                table.AddRow(
+                  i < vatsimEvent.TagLimits.Count ? BuildInfo(vatsimEvent.TagLimits[i]) : string.Empty,
+                  i < vatsimEvent.Sectors.Count ? BuildInfo(vatsimEvent.Sectors[i]) : string.Empty);
+            }
+            table.Options.EnableCount = false;
             Console.WriteLine(table.ToString());
 
             // display departure / arrival slots
@@ -78,7 +97,7 @@ namespace CTPSimulatorOfflineTester
             }
             Console.WriteLine(table.ToString());
             foreach (var comment in vatsimEvent.CalculationParameters.SlotGenerationOutputComments) Console.WriteLine(comment);
-            Console.WriteLine($"Slot calculation took {stopWatch.ElapsedMilliseconds}ms");
+            Console.WriteLine($"Slot generation took {stopWatch.ElapsedMilliseconds}ms");
             JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
             JsonWrapping.WrapSlotHighVerbosityData(vatsimEvent);
 
@@ -87,11 +106,11 @@ namespace CTPSimulatorOfflineTester
             var vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, settings);
             File.WriteAllText("createSlotDistribution.json", vatsimEventJson);
 
-            var sectorBoundaries = await SectorParsing.LoadSectorBoundaries();
-            JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, sectorBoundaries);
-
             // event simulation
             Console.WriteLine();
+
+            var sectorBoundaries = await SectorParsing.LoadSectorBoundaries();
+            JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, sectorBoundaries);
 
             stopWatch = Stopwatch.StartNew();
             await Simulator.SimulateEvent(vatsimEvent);
@@ -108,7 +127,9 @@ namespace CTPSimulatorOfflineTester
         }
         static string BuildInfo(ThroughputPoint throughputPoint)
         {
-            return $"{throughputPoint.Identifier} {throughputPoint.SlotsAllocated} / {throughputPoint.MaximumSlots}";
+            string output = $"{throughputPoint.Identifier.Split(' ').First()} {throughputPoint.SlotsAllocated}";
+            if (throughputPoint.MaximumAircraftPerHour < ThroughputPoint.InfinityMarker) output += $" / {throughputPoint.MaximumSlots}";
+            return output;
         }
     }
 }

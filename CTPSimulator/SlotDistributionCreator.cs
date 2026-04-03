@@ -94,6 +94,7 @@ namespace CTPSimulator
                 }
 
                 // take all possible options where slots could go
+                // go through each departure airport
                 List<SlotChoice> choices = new();
                 foreach (var departureAirport in vatsimEvent.DepartureAirports.Where(da => da.AreSlotsStillAvailable))
                 {
@@ -102,21 +103,19 @@ namespace CTPSimulator
                     double departureVoteTarget = totalDepartureVotes > 0 ? ((double)departureAirport.NumberOfVotes / totalDepartureVotes) * totalSlotsAllocated : 0;
                     double departureVoteDeficit = departureVoteTarget - departureAirport.SlotsAllocated;              
 
+                    // find the possible secondary route segments (NATs) for this departure airport
                     var possibleSecondaryRouteSegments = departureAirport.ConnectingSecondaryRouteSegments
-                        .Where(sr =>
-                            sr.AreSlotsStillAvailable &&
-
-                            !sr.TagLimits.Any(tl => !tl.AreSlotsStillAvailable) &&
-                            !sr.ProvidedFacilityProgression.Any(s => !s.AreSlotsStillAvailable) &&
-
+                        .Where(sr => 
+                                CheckRouteSegmentAvailableSlots(sr) &&
                             // At least one primary departure feeder with no blocked tags/sectors exists for this oceanic entry point
                             departureAirport.ConnectingPrimaryRouteSegments
                                 .Any(pr => pr.Locations.Last() == sr.Locations.First() && 
-                                RouteSegmentSectorsAndTagsHaveAvailableSlots(pr)))
+                                CheckRouteSegmentAvailableSlots(pr)))
                         .ToList();
 
                     foreach (var routeSegment in possibleSecondaryRouteSegments)
                     {
+                        // find all arrivals that can connect to these NATs
                         var possibleArrivals = vatsimEvent.ArrivalAirports
                             .Where(aa =>
                                 aa.AreSlotsStillAvailable &&
@@ -125,7 +124,7 @@ namespace CTPSimulator
                                 // At least one primary arrival feeder with no blocked tags/sectors exists for this oceanic exit point
                                 aa.ConnectingPrimaryRouteSegments
                                     .Any(pr => pr.Locations.First() == routeSegment.Locations.Last() &&
-                                    RouteSegmentSectorsAndTagsHaveAvailableSlots(pr)))
+                                    CheckRouteSegmentAvailableSlots(pr)))
                                 .ToList();
 
                         foreach (var arrivalAirport in possibleArrivals)
@@ -178,7 +177,7 @@ namespace CTPSimulator
                 var firstRouteSegment = choice.DepartureAirport.ConnectingPrimaryRouteSegments
                     .Where(pr =>
                         pr.Locations.Last() == choice.RouteSegment.Locations.First() &&
-                        RouteSegmentSectorsAndTagsHaveAvailableSlots(pr))
+                        CheckRouteSegmentAvailableSlots(pr))
                     .OrderByDescending(pr => pr.GetNumberOfSlotsPerAirportPair(choice.DepartureAirport, choice.ArrivalAirport)).First();
 
                 firstRouteSegment.SlotsAllocated++;
@@ -187,7 +186,7 @@ namespace CTPSimulator
                 var thirdRouteSegment = choice.ArrivalAirport.ConnectingPrimaryRouteSegments
                     .Where(pr =>
                         pr.Locations.First() == choice.RouteSegment.Locations.Last() &&
-                        RouteSegmentSectorsAndTagsHaveAvailableSlots(pr))
+                        CheckRouteSegmentAvailableSlots(pr))
                     .OrderByDescending(pr => pr.GetNumberOfSlotsPerAirportPair(choice.DepartureAirport, choice.ArrivalAirport)).First();
 
                 thirdRouteSegment.SlotsAllocated++;
@@ -245,8 +244,12 @@ namespace CTPSimulator
             vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add($"Average number of routings per city pair: {numbersOfRoutingsPerCityPair.Average():F1} (highest: {numbersOfRoutingsPerCityPair.Max()})");
         }
 
-        static bool RouteSegmentSectorsAndTagsHaveAvailableSlots(RouteSegment r) =>
-            !r.TagLimits.Any(tl => !tl.AreSlotsStillAvailable) &&
-            !r.ProvidedFacilityProgression.Any(s => !s.AreSlotsStillAvailable);
+        /// <summary>Check if: The route segment itself still has available slots,
+        /// all tag limits still have available slots,
+        /// all sectors in the provided facility progression still have available slots.</summary>
+        static bool CheckRouteSegmentAvailableSlots(RouteSegment rs) =>
+            rs.AreSlotsStillAvailable &&
+            rs.TagLimits.All(tl => tl.AreSlotsStillAvailable) &&
+            rs.ProvidedFacilityProgression.All(s => s.AreSlotsStillAvailable);
     }
 }
