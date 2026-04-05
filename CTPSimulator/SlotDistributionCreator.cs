@@ -1,14 +1,4 @@
-﻿using CoordinateSharp;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.ComponentModel.Design;
-using System.Net;
-using System.Reflection.Emit;
-using System.Runtime.InteropServices;
-using System.Text;
-
-namespace CTPSimulator
+﻿namespace CTPSimulator
 {
     public static class SlotDistributionCreator
     {

@@ -3,7 +3,6 @@ using CTPSimulator;
 using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Globalization;
-using System.Reflection.PortableExecutable;
 
 namespace CTPSimulatorOfflineTester
 {

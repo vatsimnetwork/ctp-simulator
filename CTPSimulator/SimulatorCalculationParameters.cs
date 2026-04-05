@@ -1,8 +1,5 @@
 ﻿using CoordinateSharp;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using static CTPSimulator.JsonWrapping;
 
 namespace CTPSimulator
