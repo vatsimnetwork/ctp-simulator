@@ -87,9 +87,6 @@ namespace CTPSimulator
 
         private static void SimulateSlot(VATSIMEvent vatsimEvent, DateTimeOffset departureTime, Slot slot, bool synchronizationMode, CancellationToken cancellationToken)
         {
-            if (slot.Id == 7)
-            { }
-
             if (!slot.HasBeenSetupForEnrouteCalculations)
             {
                 // check validity of data: are there enough waypoints?
@@ -120,13 +117,13 @@ namespace CTPSimulator
             if (!slot.HasBeenSetupForEnrouteCalculations)
             {
                 // concat locations
-                slot.RouteWaypoints = [(origin, new Coordinate(origin.Latitude, origin.Longitude, new EagerLoad(false)), slot.RouteSegments.First())];
-                for (int r = 0; r < slot.RouteSegments.Count; r++)
+                slot.RouteWaypoints = [(origin, new Coordinate(origin.Latitude, origin.Longitude, new EagerLoad(false)), slot.RouteSegments.First())];                
+                foreach (var segment in slot.RouteSegments)
                 {
-                    for (int l = 1; l < slot.RouteSegments[r].Locations.Count; l++)
+                    for (int l = 1; l < segment.Locations.Count; l++)
                     {
-                        var location = slot.RouteSegments[r].Locations[l];
-                        slot.RouteWaypoints.Add((location, new Coordinate(location.Latitude, location.Longitude, new EagerLoad(false)), slot.RouteSegments[r]));
+                        var location = segment.Locations[l];
+                        slot.RouteWaypoints.Add((location, new Coordinate(location.Latitude, location.Longitude, new EagerLoad(false)), segment));
                     }
                 }
 

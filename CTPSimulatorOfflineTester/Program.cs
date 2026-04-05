@@ -18,7 +18,6 @@ namespace CTPSimulatorOfflineTester
             vatsimEvent.CalculationParameters.HighVerbosity = true;
             vatsimEvent.CalculationParameters.HighSimulationAccuracy = true;
             vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
-            vatsimEvent.CalculationParameters.IntendedSlotGenerationMode = SimulatorCalculationParameters.SlotGenerationMode.MaximizeAirportPairs;
 
             JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
 

@@ -7,7 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Resources\alglib407gpl_net5.dll" />
     <None Remove="Resources\Boundaries.geojson" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\alglib407gpl_net5.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 
   <ItemGroup>
@@ -17,6 +24,12 @@
   <ItemGroup>
     <PackageReference Include="CoordinateSharp" Version="3.4.1.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="alglib407gpl_net5">
+      <HintPath>Resources\alglib407gpl_net5.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>
