@@ -116,9 +116,6 @@ namespace CTPSimulator
 
         [JsonIgnore]
         public bool AreSlotsStillAvailable => MaximumSlots >= InfinityMarker || SlotsAllocated < MaximumSlots;
-
-        [JsonIgnore]
-        public HashSet<int> RouteIndexes { get; set; } = new();
     }
 
     public class Location : ThroughputPoint // waypoint or airport
@@ -147,7 +144,7 @@ namespace CTPSimulator
         public List<RouteSegment> ConnectingSecondaryRouteSegments { get; set; } = new();
 
         [JsonIgnore]
-        public List<Airport> ConnectingAirports { get; set; } = new();
+        public bool IgnoreInSlotDistribution { get; set; } = false;
     }
 
 
