@@ -13,26 +13,27 @@ namespace CTPSimulatorOfflineTester
             // set locale
             Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
 
-            var vatsimEvent = ReadVATSIMEventFromJson();
-            vatsimEvent.CalculationParameters.HighVerbosity = true;
-            vatsimEvent.CalculationParameters.HighSimulationAccuracy = true;
-            vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
-
-            await CreateSlotDistribution(vatsimEvent);
+            //var vatsimEvent = ReadVATSIMEventFromJson("response_1775663756224.json", false);
+            //await CreateSlotDistribution(vatsimEvent);
             //SaveSlotDistribution(vatsimEvent);
 
             Console.WriteLine();
 
             // event simulation
-            //await SimulateEvent(vatsimEvent);
-            //SaveEventSimulation(vatsimEvent);
+            var vatsimEvent = ReadVATSIMEventFromJson("response_1775766807652.json", true);
+            //vatsimEvent.CalculationParameters.HighSimulationAccuracy = true;
+            //vatsimEvent.CalculationParameters.HighVerbosity = true;
+            //vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
+            await SimulateEvent(vatsimEvent);
+            SaveEventSimulation(vatsimEvent);
         }
 
 
-        static VATSIMEvent ReadVATSIMEventFromJson()
+        static VATSIMEvent ReadVATSIMEventFromJson(string jsonName, bool unwrapAllSlotAirportsAndRouteSegments)
         {
-            VATSIMEvent vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(File.ReadAllText("response_1774973748306.json"));
+            VATSIMEvent vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(File.ReadAllText(jsonName));
             JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
+            if (unwrapAllSlotAirportsAndRouteSegments) JsonWrapping.UnwrapAllSlotAirportsAndRouteSegments(vatsimEvent);
             return vatsimEvent;
         }
         static VATSIMEvent ReadVATSIMEventFromCSVs()
@@ -50,39 +51,30 @@ namespace CTPSimulatorOfflineTester
             stopWatch.Stop();
 
             // display the results
-            var table = new ConsoleTable("Departures", "Primary", "NAT Tracks", "Tertiary", "Arrivals");
+            var table = new ConsoleTable("Departures", "Arrivals");
             table.Options.EnableCount = false;
 
-            var primarySegments = vatsimEvent.DepartureAirports.SelectMany(da => da.ConnectingPrimaryRouteSegments).ToList();
-            var natSegments = vatsimEvent.RouteSegments.Where(rs => vatsimEvent.Airports.Exists(a => a.ConnectingSecondaryRouteSegments.Contains(rs))).ToList();
-            var tertiarySegments = vatsimEvent.ArrivalAirports.SelectMany(aa => aa.ConnectingPrimaryRouteSegments).ToList();
-
-            int rows = new List<int>([vatsimEvent.DepartureAirports.Count, primarySegments.Count, natSegments.Count, tertiarySegments.Count, vatsimEvent.ArrivalAirports.Count]).Max();
+            int rows = new List<int>([vatsimEvent.DepartureAirports.Count, vatsimEvent.ArrivalAirports.Count]).Max();
             for (int i = 0; i < rows; i++)
             {
                 table.AddRow(
                     i < vatsimEvent.DepartureAirports.Count ? BuildInfo(vatsimEvent.DepartureAirports[i]) : string.Empty,
-                    i < primarySegments.Count ? BuildInfo(primarySegments[i]) : string.Empty,
-                    i < natSegments.Count ? BuildInfo(natSegments[i]) : string.Empty,
-                    i < tertiarySegments.Count ? BuildInfo(tertiarySegments[i]) : string.Empty,
                     i < vatsimEvent.ArrivalAirports.Count ? BuildInfo(vatsimEvent.ArrivalAirports[i]) : string.Empty);
             }
 
             table.AddRow(
                 $"{vatsimEvent.DepartureAirports.Sum(da => da.SlotsAllocated)} / {vatsimEvent.DepartureAirports.Sum(da => da.MaximumSlots)}",
-                string.Empty,
-                $"{natSegments.Sum(s => s.SlotsAllocated)} / {natSegments.Sum(s => s.MaximumSlots)}",
-                string.Empty,
                 $"{vatsimEvent.ArrivalAirports.Sum(aa => aa.SlotsAllocated)} / {vatsimEvent.ArrivalAirports.Sum(aa => aa.MaximumSlots)}");
 
             Console.WriteLine(table.ToString());
 
-            // sectors and route tags
-            table = new ConsoleTable("Route Tags", "Sectors");
-            rows = Math.Max(vatsimEvent.Sectors.Count, vatsimEvent.TagLimits.Count);
+            // routes, sectors and route tags
+            table = new ConsoleTable("Routes", "Route Tags", "Sectors");
+            rows = Math.Max(vatsimEvent.RouteSegments.Count, Math.Max(vatsimEvent.Sectors.Count, vatsimEvent.TagLimits.Count));
             for (int i = 0; i < rows; i++)
             {
                 table.AddRow(
+                  i < vatsimEvent.RouteSegments.Count ? BuildInfo(vatsimEvent.RouteSegments[i]) : string.Empty,
                   i < vatsimEvent.TagLimits.Count ? BuildInfo(vatsimEvent.TagLimits[i]) : string.Empty,
                   i < vatsimEvent.Sectors.Count ? BuildInfo(vatsimEvent.Sectors[i]) : string.Empty);
             }
@@ -114,12 +106,13 @@ namespace CTPSimulatorOfflineTester
             }
             Console.WriteLine(table.ToString());
             foreach (var comment in vatsimEvent.CalculationParameters.SlotGenerationOutputComments) Console.WriteLine(comment);
+            Console.WriteLine();
             Console.WriteLine($"Slot generation took {stopWatch.ElapsedMilliseconds}ms");
         }
         static void SaveSlotDistribution(VATSIMEvent vatsimEvent)
         {
             JsonWrapping.WrapAllSlotAirportsAndRouteSegments(vatsimEvent);
-            JsonWrapping.WrapSlotHighVerbosityData(vatsimEvent);
+            if (vatsimEvent.CalculationParameters.HighVerbosity) JsonWrapping.WrapSlotHighVerbosityData(vatsimEvent);
 
             var settings = JsonWrapping.SerializationSettings(JsonWrapping.Action.CreateSlotDistribution, true);
             settings.Formatting = Formatting.Indented;
@@ -136,11 +129,12 @@ namespace CTPSimulatorOfflineTester
             stopWatch.Stop();
 
             foreach (var comment in vatsimEvent.CalculationParameters.SimulationOutputComments) Console.WriteLine(comment);
-            Console.WriteLine($"Event simulation took {stopWatch.ElapsedMilliseconds}ms");    
+            Console.WriteLine($"Event simulation took {stopWatch.ElapsedMilliseconds}ms");
         }
         static void SaveEventSimulation(VATSIMEvent vatsimEvent)
         {
             JsonWrapping.WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(vatsimEvent);
+            if (vatsimEvent.CalculationParameters.HighVerbosity) JsonWrapping.WrapSlotHighVerbosityData(vatsimEvent);
             var settings = JsonWrapping.SerializationSettings(JsonWrapping.Action.SimulateEvent, true);
             settings.Formatting = Formatting.Indented;
             string vatsimEventJson = JsonConvert.SerializeObject(vatsimEvent, settings);

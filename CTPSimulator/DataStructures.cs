@@ -109,7 +109,7 @@ namespace CTPSimulator
 
         // values / functions only for the simulator internally
         [JsonIgnore]
-        public ushort SlotsAllocated { get; set; }
+        public int SlotsAllocated { get; set; }
 
         [JsonIgnore]
         public int SlotsStillAvailable => MaximumSlots >= InfinityMarker ? int.MaxValue : MaximumSlots - SlotsAllocated;
@@ -136,15 +136,6 @@ namespace CTPSimulator
         [JsonOnlyOnSimulateEventSerialization]
         // values populated by the simulator
         public DateTimeOffset DepartureTimeWindowStart { get; set; }
-
-        [JsonIgnore]
-        public List<RouteSegment> ConnectingPrimaryRouteSegments { get; set; } = new();
-
-        [JsonIgnore]
-        public List<RouteSegment> ConnectingSecondaryRouteSegments { get; set; } = new();
-
-        [JsonIgnore]
-        public bool IgnoreInSlotDistribution { get; set; } = false;
     }
 
 
