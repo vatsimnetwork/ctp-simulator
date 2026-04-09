@@ -87,9 +87,6 @@ namespace CTPSimulator
 
         private static void SimulateSlot(VATSIMEvent vatsimEvent, DateTimeOffset departureTime, Slot slot, bool synchronizationMode, CancellationToken cancellationToken)
         {
-            if (slot.Id == 7)
-            { }
-
             if (!slot.HasBeenSetupForEnrouteCalculations)
             {
                 // check validity of data: are there enough waypoints?
@@ -145,12 +142,12 @@ namespace CTPSimulator
                 }
 
                 slot.HasBeenSetupForEnrouteCalculations = true;
-            }   
+            }
 
             // log takeoff at departure airport
             if (!synchronizationMode)
             {
-                int minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - departureTime).TotalMinutes);
+                int minuteOffset = (int)Math.Round((departureTime - vatsimEvent.SynchronizationDateTime).TotalMinutes);
                 LogSlotInThroughputPoint(slot.DepartureAirport, minuteOffset, slot);
             }
 
@@ -216,7 +213,7 @@ namespace CTPSimulator
                             }
 
                             // log sectors
-                            int minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
+                            int minuteOffset = (int)Math.Round((currentTime - vatsimEvent.SynchronizationDateTime).TotalMinutes);
                             foreach (Sector sector in sectorsToBeChecked)
                             {
                                 cancellationToken.ThrowIfCancellationRequested();
@@ -282,7 +279,7 @@ namespace CTPSimulator
                         else if (!synchronizationMode) // final segment: log arrival time
                         {
                             slot.ProjectedArrivalTime = currentTime;
-                            int minuteOffset = (int)Math.Round((vatsimEvent.SynchronizationDateTime - currentTime).TotalMinutes);
+                            int minuteOffset = (int)Math.Round((currentTime - vatsimEvent.SynchronizationDateTime).TotalMinutes);
                             LogSlotInThroughputPoint(slot.ArrivalAirport, minuteOffset, slot);
                         }
 
