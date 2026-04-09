@@ -13,28 +13,28 @@ namespace CTPSimulator
         public static async Task SimulateEvent(VATSIMEvent vatsimEvent, CancellationToken cancellationToken = default)
         {
             // STEP 1: CALCULATE SLOT TIMINGS
-            if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode != SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.None)
+            // Group slots by departure airport and unique routing
+            Dictionary<Airport, List<List<Slot>>> slotsWithUniqueRoutings = new Dictionary<Airport, List<List<Slot>>>();
+            foreach (Slot slot in vatsimEvent.Slots)
             {
-                // extract slots with unique routings
-                Dictionary<Airport, List<List<Slot>>> slotsWithUniqueRoutings = new Dictionary<Airport, List<List<Slot>>>();
-                foreach (Slot slot in vatsimEvent.Slots)
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!slotsWithUniqueRoutings.TryGetValue(slot.DepartureAirport, out var airportSlotSets))
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (!slotsWithUniqueRoutings.TryGetValue(slot.DepartureAirport, out var airportSlotSets))
-                    {
-                        slotsWithUniqueRoutings[slot.DepartureAirport] = [[slot]];
-                    }
-                    else
-                    {
-                        var uniqueList = airportSlotSets.Find(ass => ass.First().RouteSegments.SequenceEqual(slot.RouteSegments));
-                        if (uniqueList == null) airportSlotSets.Add([slot]);
-                        else uniqueList.Add(slot);
-                    }
-                    airportSlotSets = null;
+                    slotsWithUniqueRoutings[slot.DepartureAirport] = [[slot]];
                 }
+                else
+                {
+                    var uniqueList = airportSlotSets.Find(ass => ass.First().RouteSegments.SequenceEqual(slot.RouteSegments));
+                    if (uniqueList == null) airportSlotSets.Add([slot]);
+                    else uniqueList.Add(slot);
+                }
+                airportSlotSets = null;
+            }
 
-                // calculate the departure time offsets
-                foreach (var departureSlots in slotsWithUniqueRoutings)
+            foreach (var departureSlots in slotsWithUniqueRoutings)
+            {
+                // When mode is not None, simulate routes to calculate departure window offsets
+                if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode != SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.None)
                 {
                     // simulate single unique slot
                     foreach (var slotSet in departureSlots.Value)
@@ -57,23 +57,23 @@ namespace CTPSimulator
 
                     // calculate offset
                     departureSlots.Key.DepartureTimeWindowStart = vatsimEvent.SynchronizationDateTime - timeUntilSynchronizationLongitude;
+                }
 
-                    // calculate actual slot data
-                    List<(Slot, double)> distributedSlots = new();
-                    foreach (var slotSet in departureSlots.Value)
+                // Distribute slots within the departure window (applies to all modes including None)
+                List<(Slot, double)> distributedSlots = new();
+                foreach (var slotSet in departureSlots.Value)
+                {
+                    for (int i = 0; i < slotSet.Count; i++)
                     {
-                        for (int i = 0; i < slotSet.Count; i++)
-                        {
-                            double ordinator = slotSet.Count == 1 ? 0.5 : (double)i / (slotSet.Count - 1);
-                            distributedSlots.Add((slotSet[i], ordinator));
-                        }
+                        double ordinator = slotSet.Count == 1 ? 0.5 : (double)i / (slotSet.Count - 1);
+                        distributedSlots.Add((slotSet[i], ordinator));
                     }
+                }
 
-                    distributedSlots = distributedSlots.OrderBy(s => s.Item2).ToList();
-                    foreach (var slot in distributedSlots)
-                    {
-                        slot.Item1.DepartureTime = departureSlots.Key.DepartureTimeWindowStart + vatsimEvent.DepartureTimeWindow * slot.Item2;
-                    }
+                distributedSlots = distributedSlots.OrderBy(s => s.Item2).ToList();
+                foreach (var slot in distributedSlots)
+                {
+                    slot.Item1.DepartureTime = departureSlots.Key.DepartureTimeWindowStart + vatsimEvent.DepartureTimeWindow * slot.Item2;
                 }
             }
 
