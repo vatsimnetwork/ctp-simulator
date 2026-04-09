@@ -42,7 +42,20 @@ namespace CTPSimulatorContainer
                     if (!string.IsNullOrEmpty(json))
                     {
                         VATSIMEvent vatsimEvent = JsonConvert.DeserializeObject<VATSIMEvent>(json);
-                        if (vatsimEvent != null) return vatsimEvent;
+                        if (vatsimEvent != null)
+                        {
+                            var cp = vatsimEvent.CalculationParameters;
+                            Console.WriteLine($"[DESERIALIZED] Event={vatsimEvent.Id} Title={vatsimEvent.Title} RouteRevision={vatsimEvent.RouteRevision} SlotRevision={vatsimEvent.SlotRevision}");
+                            Console.WriteLine($"[PARAMS] SlotGenerationMode={cp.IntendedSlotGenerationMode}({(int)cp.IntendedSlotGenerationMode}) OffsetCalcMode={cp.IntendedDepartureTimeWindowOffsetsCalculationMode}({(int)cp.IntendedDepartureTimeWindowOffsetsCalculationMode}) WaypointMode={cp.IntendedWaypointThroughputCalculationMode}({(int)cp.IntendedWaypointThroughputCalculationMode})");
+                            Console.WriteLine($"[PARAMS] SyncLongitude={cp.DepartureTimeWindowOffsetSynchronizationLongitude} SyncTime={cp.DepartureTimeWindowOffsetSynchronizationTimeOfDay} ResolutionMin={cp.SimulationAnalysisResolutionInMinutes} HighAccuracy={cp.HighSimulationAccuracy} Weather={cp.ShouldSimulationUseActualWeatherForecastData}");
+                            Console.WriteLine($"[PARAMS] FallbackGS={cp.CalculationFallbackGroundSpeed} WaypointThresholdNm={cp.ThresholdToCheckIfAirplaneIsCountedAtWaypointInNm} ManualSectorsOnly={cp.CalculateThroughputDataOnlyForManuallyProvidedSectors}");
+                            Console.WriteLine($"[AIRPORTS] Count={vatsimEvent.Airports.Count}");
+                            foreach (var airport in vatsimEvent.Airports)
+                            {
+                                Console.WriteLine($"  Airport={airport.Identifier}({airport.Id}) MaxAcPerHour={airport.MaximumAircraftPerHour} MaxSlots={airport.MaximumSlots} DepartureTimeWindowStart={airport.DepartureTimeWindowStart}");
+                            }
+                            return vatsimEvent;
+                        }
                     }
                 }
                 throw new NullReferenceException("ExtractVatsimEvent returned null.");
@@ -64,6 +77,7 @@ namespace CTPSimulatorContainer
         {
             try
             {
+                Console.WriteLine("[REQUEST] CreateSlotDistribution");
                 var vatsimEvent = extractVatsimEvent(context);
                 JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
                 await SlotDistributionCreator.CreateSlotDistribution(vatsimEvent);
@@ -82,6 +96,7 @@ namespace CTPSimulatorContainer
         {
             try
             {
+                Console.WriteLine("[REQUEST] SimulateEvent");
                 var vatsimEvent = extractVatsimEvent(context);
                 JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
                 JsonWrapping.UnwrapAllSlotAirportsAndRouteSegments(vatsimEvent);
