@@ -70,31 +70,44 @@ namespace CTPSimulator
                     }
                 }
 
-                // Partition into non-deferred (early) and deferred (late) groups.
+                // Partition into preferred (early), normal, and deferred (late) groups.
+                // Preferred-pair slots are placed at the start of the departure window.
                 // Deferred-pair slots are placed at the end of the departure window.
-                if (vatsimEvent.DeferredDeparturePairs.Count > 0)
+                if (vatsimEvent.DeferredDeparturePairs.Count > 0 || vatsimEvent.PreferredDeparturePairs.Count > 0)
                 {
-                    var nonDeferred = distributedSlots
-                        .Where(s => !vatsimEvent.DeferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
+                    var preferred = distributedSlots
+                        .Where(s => vatsimEvent.PreferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
                         .OrderBy(s => s.Ordinator).ToList();
                     var deferred = distributedSlots
                         .Where(s => vatsimEvent.DeferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
                         .OrderBy(s => s.Ordinator).ToList();
+                    var normal = distributedSlots
+                        .Where(s =>
+                            !vatsimEvent.PreferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)) &&
+                            !vatsimEvent.DeferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
+                        .OrderBy(s => s.Ordinator).ToList();
 
-                    if (nonDeferred.Count > 0 && deferred.Count > 0)
+                    if (preferred.Count > 0 || normal.Count > 0 || deferred.Count > 0)
                     {
                         int totalCount = distributedSlots.Count;
-                        double splitPoint = (double)nonDeferred.Count / totalCount;
+                        double prefEnd = preferred.Count > 0 ? (double)preferred.Count / totalCount / 2 : 0;
+                        double defStart = preferred.Count > 0 ? 1.0 - (double)deferred.Count / totalCount / 2 : (normal.Count > 0 ? (double)preferred.Count / totalCount : 1.0);
 
                         distributedSlots = new();
-                        for (int i = 0; i < nonDeferred.Count; i++)
+
+                        for (int i = 0; i < preferred.Count; i++)
                         {
-                            double ord = nonDeferred.Count == 1 ? splitPoint / 2 : splitPoint * i / (nonDeferred.Count - 1);
-                            distributedSlots.Add((nonDeferred[i].Slot, ord));
+                            double ord = preferred.Count == 1 ? prefEnd / 2 : prefEnd * i / (preferred.Count - 1);
+                            distributedSlots.Add((preferred[i].Slot, ord));
+                        }
+                        for (int i = 0; i < normal.Count; i++)
+                        {
+                            double ord = prefEnd + (defStart - prefEnd) * (preferred.Count > 0 || deferred.Count > 0 ? (double)i / (normal.Count - 1) : 0.5);
+                            distributedSlots.Add((normal[i].Slot, ord));
                         }
                         for (int i = 0; i < deferred.Count; i++)
                         {
-                            double ord = deferred.Count == 1 ? (splitPoint + 1) / 2 : splitPoint + (1 - splitPoint) * i / (deferred.Count - 1);
+                            double ord = defStart + (1.0 - defStart) * (deferred.Count > 1 ? (double)i / (deferred.Count - 1) : 0.5);
                             distributedSlots.Add((deferred[i].Slot, ord));
                         }
                     }
