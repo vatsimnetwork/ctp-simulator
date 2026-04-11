@@ -244,6 +244,12 @@ namespace CTPSimulator
         [JsonOnlyOnSimulateEventSerialization]
         public DateTimeOffset ProjectedArrivalTime { get; set; }
 
+
+        [JsonOnlyOnSimulateEventSerialization]
+        /// <summary>The simulated positions of this airplane as [TimeStamp: [Lat, Lon]].</summary>
+        public SortedDictionary<DateTimeOffset, double[]> SimulatedPositions { get; set; } = new();
+
+
         [JsonOnlyOnHighVerbositySerialization]
         public TimeSpan ProjectedFlightTime => ProjectedArrivalTime - DepartureTime;
 
@@ -256,6 +262,8 @@ namespace CTPSimulator
         public Airport ArrivalAirport { get; set; }
 
         public ulong ArrivalAirportId { get; set; }
+
+
 
         [JsonIgnore]
         public bool HasBeenSetupForEnrouteCalculations { get; set; }

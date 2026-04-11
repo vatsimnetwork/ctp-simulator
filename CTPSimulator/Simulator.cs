@@ -191,6 +191,9 @@ namespace CTPSimulator
                         // we are not in synchronization mode (so log the throughput data)
                         if (!synchronizationMode)
                         {
+                            // log position
+                            slot.SimulatedPositions.Add(currentTime, [currentPosition.Latitude.DecimalDegree, currentPosition.Longitude.DecimalDegree]);
+
                             // log this into sectors
                             List<Sector> sectorsToBeChecked;
                             if (vatsimEvent.CalculationParameters.CalculateThroughputDataOnlyForManuallyProvidedSectors)
@@ -270,7 +273,7 @@ namespace CTPSimulator
                     {
                         TimeSpan timeUntilNextWaypoint = TimeSpan.FromHours(distanceToNextWaypoint / groundSpeed);
                         currentTime += timeUntilNextWaypoint;
-                        currentPosition = nextWaypoint.Item2;  
+                        currentPosition = nextWaypoint.Item2;
 
                         if (!finalSegment)
                         {
