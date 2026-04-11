@@ -89,6 +89,16 @@ namespace CTPSimulatorContainer
                 JsonWrapping.UnwrapAllSlotAirportsAndRouteSegments(vatsimEvent);
                 JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, SectorBoundaries);
 
+                // Unwrap deferred departure pairs into the lookup set
+                foreach (var pair in vatsimEvent.DeferredDeparturePairIds)
+                    if (pair.Length == 2)
+                        vatsimEvent.DeferredDeparturePairs.Add((pair[0], pair[1]));
+
+                // Unwrap preferred departure pairs into the lookup set
+                foreach (var pair in vatsimEvent.PreferredDeparturePairIds)
+                    if (pair.Length == 2)
+                        vatsimEvent.PreferredDeparturePairs.Add((pair[0], pair[1]));
+
                 // simulate
                 await Simulator.SimulateEvent(vatsimEvent);
                 JsonWrapping.WrapAllThroughputPointSlotsAnalysisFramesViaMinutesFromSynchronizationTimes(vatsimEvent);

@@ -71,6 +71,20 @@ namespace CTPSimulator
 
         public List<Slot> Slots { get; set; } = new();
 
+        // Deferred departure pairs: array of [depAirportId, arrAirportId].
+        // Slots matching these pairs are placed at the end of the departure window.
+        public List<ulong[]> DeferredDeparturePairIds { get; set; } = new();
+
+        [JsonIgnore]
+        public HashSet<(ulong, ulong)> DeferredDeparturePairs { get; set; } = new();
+
+        // Preferred departure pairs: array of [depAirportId, arrAirportId].
+        // Slots matching these pairs are placed at the start of the departure window.
+        public List<ulong[]> PreferredDeparturePairIds { get; set; } = new();
+
+        [JsonIgnore]
+        public HashSet<(ulong, ulong)> PreferredDeparturePairs { get; set; } = new();
+
 
         // values / functions only for the simulator internally
         [JsonIgnore]
