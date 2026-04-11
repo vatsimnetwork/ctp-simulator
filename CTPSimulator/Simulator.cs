@@ -60,7 +60,7 @@ namespace CTPSimulator
                 }
 
                 // Distribute slots within the departure window (applies to all modes including None)
-                List<(Slot, double)> distributedSlots = new();
+                List<(Slot Slot, double Ordinator)> distributedSlots = new();
                 foreach (var slotSet in departureSlots.Value)
                 {
                     for (int i = 0; i < slotSet.Count; i++)
@@ -70,10 +70,40 @@ namespace CTPSimulator
                     }
                 }
 
-                distributedSlots = distributedSlots.OrderBy(s => s.Item2).ToList();
+                // Partition into non-deferred (early) and deferred (late) groups.
+                // Deferred-pair slots are placed at the end of the departure window.
+                if (vatsimEvent.DeferredDeparturePairs.Count > 0)
+                {
+                    var nonDeferred = distributedSlots
+                        .Where(s => !vatsimEvent.DeferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
+                        .OrderBy(s => s.Ordinator).ToList();
+                    var deferred = distributedSlots
+                        .Where(s => vatsimEvent.DeferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
+                        .OrderBy(s => s.Ordinator).ToList();
+
+                    if (nonDeferred.Count > 0 && deferred.Count > 0)
+                    {
+                        int totalCount = distributedSlots.Count;
+                        double splitPoint = (double)nonDeferred.Count / totalCount;
+
+                        distributedSlots = new();
+                        for (int i = 0; i < nonDeferred.Count; i++)
+                        {
+                            double ord = nonDeferred.Count == 1 ? splitPoint / 2 : splitPoint * i / (nonDeferred.Count - 1);
+                            distributedSlots.Add((nonDeferred[i].Slot, ord));
+                        }
+                        for (int i = 0; i < deferred.Count; i++)
+                        {
+                            double ord = deferred.Count == 1 ? (splitPoint + 1) / 2 : splitPoint + (1 - splitPoint) * i / (deferred.Count - 1);
+                            distributedSlots.Add((deferred[i].Slot, ord));
+                        }
+                    }
+                }
+
+                distributedSlots = distributedSlots.OrderBy(s => s.Ordinator).ToList();
                 foreach (var slot in distributedSlots)
                 {
-                    slot.Item1.DepartureTime = departureSlots.Key.DepartureTimeWindowStart + vatsimEvent.DepartureTimeWindow * slot.Item2;
+                    slot.Slot.DepartureTime = departureSlots.Key.DepartureTimeWindowStart + vatsimEvent.DepartureTimeWindow * slot.Ordinator;
                 }
             }
 

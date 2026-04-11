@@ -124,6 +124,11 @@ namespace CTPSimulatorOfflineTester
             var sectorBoundaries = await SectorParsing.LoadSectorBoundaries();
             JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, sectorBoundaries);
 
+            // Unwrap deferred departure pairs into the lookup set
+            foreach (var pair in vatsimEvent.DeferredDeparturePairIds)
+                if (pair.Length == 2)
+                    vatsimEvent.DeferredDeparturePairs.Add((pair[0], pair[1]));
+
             var stopWatch = Stopwatch.StartNew();
             await Simulator.SimulateEvent(vatsimEvent);
             stopWatch.Stop();
