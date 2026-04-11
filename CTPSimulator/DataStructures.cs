@@ -244,6 +244,11 @@ namespace CTPSimulator
         [JsonOnlyOnSimulateEventSerialization]
         public DateTimeOffset ProjectedArrivalTime { get; set; }
 
+        [JsonOnlyOnSimulateEventSerialization]
+        /// <summary>The positions of this airplane as [Lat, Lon] pairs. The first position is starting {VATSIMEvent.CalculationParameters.SimulationAnalysisResolutionInMinutes} minutes after the {Slot.DepartureTime} and then
+        /// each new entry is spaced apart every {SimulationAnalysisResolutionInMinutes} minutes until the plane arrives.</summary>
+        public List<double[]> SimulatedPositions { get; set; } = new();
+
         [JsonOnlyOnHighVerbositySerialization]
         public TimeSpan ProjectedFlightTime => ProjectedArrivalTime - DepartureTime;
 
@@ -256,6 +261,8 @@ namespace CTPSimulator
         public Airport ArrivalAirport { get; set; }
 
         public ulong ArrivalAirportId { get; set; }
+
+
 
         [JsonIgnore]
         public bool HasBeenSetupForEnrouteCalculations { get; set; }
