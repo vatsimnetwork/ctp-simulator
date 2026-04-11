@@ -90,25 +90,67 @@ namespace CTPSimulator
                     if (preferred.Count > 0 || normal.Count > 0 || deferred.Count > 0)
                     {
                         int totalCount = distributedSlots.Count;
-                        double prefEnd = preferred.Count > 0 ? (double)preferred.Count / totalCount / 2 : 0;
-                        double defStart = preferred.Count > 0 ? 1.0 - (double)deferred.Count / totalCount / 2 : (normal.Count > 0 ? (double)preferred.Count / totalCount : 1.0);
 
                         distributedSlots = new();
 
-                        for (int i = 0; i < preferred.Count; i++)
+                        if (preferred.Count > 0 && deferred.Count > 0)
                         {
-                            double ord = preferred.Count == 1 ? prefEnd / 2 : prefEnd * i / (preferred.Count - 1);
-                            distributedSlots.Add((preferred[i].Slot, ord));
+                            double prefEnd = (double)preferred.Count / totalCount / 2;
+                            double defStart = 1.0 - (double)deferred.Count / totalCount / 2;
+
+                            for (int i = 0; i < preferred.Count; i++)
+                            {
+                                double ord = preferred.Count == 1 ? prefEnd / 2 : prefEnd * i / (preferred.Count - 1);
+                                distributedSlots.Add((preferred[i].Slot, ord));
+                            }
+                            for (int i = 0; i < normal.Count; i++)
+                            {
+                                double ord = prefEnd + (defStart - prefEnd) * (normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1));
+                                distributedSlots.Add((normal[i].Slot, ord));
+                            }
+                            for (int i = 0; i < deferred.Count; i++)
+                            {
+                                double ord = defStart + (1.0 - defStart) * (deferred.Count == 1 ? 0.5 : (double)i / (deferred.Count - 1));
+                                distributedSlots.Add((deferred[i].Slot, ord));
+                            }
                         }
-                        for (int i = 0; i < normal.Count; i++)
+                        else if (preferred.Count > 0)
                         {
-                            double ord = prefEnd + (defStart - prefEnd) * (preferred.Count > 0 || deferred.Count > 0 ? (double)i / (normal.Count - 1) : 0.5);
-                            distributedSlots.Add((normal[i].Slot, ord));
+                            double prefEnd = (double)preferred.Count / totalCount;
+
+                            for (int i = 0; i < preferred.Count; i++)
+                            {
+                                double ord = preferred.Count == 1 ? prefEnd / 2 : prefEnd * i / (preferred.Count - 1);
+                                distributedSlots.Add((preferred[i].Slot, ord));
+                            }
+                            for (int i = 0; i < normal.Count; i++)
+                            {
+                                double ord = prefEnd + (1.0 - prefEnd) * (normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1));
+                                distributedSlots.Add((normal[i].Slot, ord));
+                            }
                         }
-                        for (int i = 0; i < deferred.Count; i++)
+                        else if (deferred.Count > 0)
                         {
-                            double ord = defStart + (1.0 - defStart) * (deferred.Count > 1 ? (double)i / (deferred.Count - 1) : 0.5);
-                            distributedSlots.Add((deferred[i].Slot, ord));
+                            double defStart = 1.0 - (double)deferred.Count / totalCount;
+
+                            for (int i = 0; i < normal.Count; i++)
+                            {
+                                double ord = defStart * (normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1));
+                                distributedSlots.Add((normal[i].Slot, ord));
+                            }
+                            for (int i = 0; i < deferred.Count; i++)
+                            {
+                                double ord = defStart + (1.0 - defStart) * (deferred.Count == 1 ? 0.5 : (double)i / (deferred.Count - 1));
+                                distributedSlots.Add((deferred[i].Slot, ord));
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < normal.Count; i++)
+                            {
+                                double ord = normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1);
+                                distributedSlots.Add((normal[i].Slot, ord));
+                            }
                         }
                     }
                 }
