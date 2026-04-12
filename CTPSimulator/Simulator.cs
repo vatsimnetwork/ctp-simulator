@@ -60,7 +60,7 @@ namespace CTPSimulator
                 }
 
                 // Distribute slots within the departure window (applies to all modes including None)
-                List<(Slot, double)> distributedSlots = new();
+                List<(Slot Slot, double Ordinator)> distributedSlots = new();
                 foreach (var slotSet in departureSlots.Value)
                 {
                     for (int i = 0; i < slotSet.Count; i++)
@@ -70,10 +70,95 @@ namespace CTPSimulator
                     }
                 }
 
-                distributedSlots = distributedSlots.OrderBy(s => s.Item2).ToList();
+                // Partition into preferred (early), normal, and deferred (late) groups.
+                // Preferred-pair slots are placed at the start of the departure window.
+                // Deferred-pair slots are placed at the end of the departure window.
+                if (vatsimEvent.DeferredDeparturePairs.Count > 0 || vatsimEvent.PreferredDeparturePairs.Count > 0)
+                {
+                    var preferred = distributedSlots
+                        .Where(s => vatsimEvent.PreferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
+                        .OrderBy(s => s.Ordinator).ToList();
+                    var deferred = distributedSlots
+                        .Where(s => vatsimEvent.DeferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
+                        .OrderBy(s => s.Ordinator).ToList();
+                    var normal = distributedSlots
+                        .Where(s =>
+                            !vatsimEvent.PreferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)) &&
+                            !vatsimEvent.DeferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
+                        .OrderBy(s => s.Ordinator).ToList();
+
+                    if (preferred.Count > 0 || normal.Count > 0 || deferred.Count > 0)
+                    {
+                        int totalCount = distributedSlots.Count;
+
+                        distributedSlots = new();
+
+                        if (preferred.Count > 0 && deferred.Count > 0)
+                        {
+                            double prefEnd = (double)preferred.Count / totalCount / 2;
+                            double defStart = 1.0 - (double)deferred.Count / totalCount / 2;
+
+                            for (int i = 0; i < preferred.Count; i++)
+                            {
+                                double ord = preferred.Count == 1 ? prefEnd / 2 : prefEnd * i / (preferred.Count - 1);
+                                distributedSlots.Add((preferred[i].Slot, ord));
+                            }
+                            for (int i = 0; i < normal.Count; i++)
+                            {
+                                double ord = prefEnd + (defStart - prefEnd) * (normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1));
+                                distributedSlots.Add((normal[i].Slot, ord));
+                            }
+                            for (int i = 0; i < deferred.Count; i++)
+                            {
+                                double ord = defStart + (1.0 - defStart) * (deferred.Count == 1 ? 0.5 : (double)i / (deferred.Count - 1));
+                                distributedSlots.Add((deferred[i].Slot, ord));
+                            }
+                        }
+                        else if (preferred.Count > 0)
+                        {
+                            double prefEnd = (double)preferred.Count / totalCount;
+
+                            for (int i = 0; i < preferred.Count; i++)
+                            {
+                                double ord = preferred.Count == 1 ? prefEnd / 2 : prefEnd * i / (preferred.Count - 1);
+                                distributedSlots.Add((preferred[i].Slot, ord));
+                            }
+                            for (int i = 0; i < normal.Count; i++)
+                            {
+                                double ord = prefEnd + (1.0 - prefEnd) * (normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1));
+                                distributedSlots.Add((normal[i].Slot, ord));
+                            }
+                        }
+                        else if (deferred.Count > 0)
+                        {
+                            double defStart = 1.0 - (double)deferred.Count / totalCount;
+
+                            for (int i = 0; i < normal.Count; i++)
+                            {
+                                double ord = defStart * (normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1));
+                                distributedSlots.Add((normal[i].Slot, ord));
+                            }
+                            for (int i = 0; i < deferred.Count; i++)
+                            {
+                                double ord = defStart + (1.0 - defStart) * (deferred.Count == 1 ? 0.5 : (double)i / (deferred.Count - 1));
+                                distributedSlots.Add((deferred[i].Slot, ord));
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < normal.Count; i++)
+                            {
+                                double ord = normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1);
+                                distributedSlots.Add((normal[i].Slot, ord));
+                            }
+                        }
+                    }
+                }
+
+                distributedSlots = distributedSlots.OrderBy(s => s.Ordinator).ToList();
                 foreach (var slot in distributedSlots)
                 {
-                    slot.Item1.DepartureTime = departureSlots.Key.DepartureTimeWindowStart + vatsimEvent.DepartureTimeWindow * slot.Item2;
+                    slot.Slot.DepartureTime = departureSlots.Key.DepartureTimeWindowStart + vatsimEvent.DepartureTimeWindow * slot.Ordinator;
                 }
             }
 
