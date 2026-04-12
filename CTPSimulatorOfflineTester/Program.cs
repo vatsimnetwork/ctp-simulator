@@ -13,19 +13,19 @@ namespace CTPSimulatorOfflineTester
             // set locale
             Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
 
-            //var vatsimEvent = ReadVATSIMEventFromJson("response_1775663756224.json", false);
-            //await CreateSlotDistribution(vatsimEvent);
+            var vatsimEvent = ReadVATSIMEventFromJson("response_1775654782838.json", false);
+            await CreateSlotDistribution(vatsimEvent);
             //SaveSlotDistribution(vatsimEvent);
 
             Console.WriteLine();
 
             // event simulation
-            var vatsimEvent = ReadVATSIMEventFromJson("response_1775766807652.json", true);
+            //var vatsimEvent = ReadVATSIMEventFromJson("response_1775766807652.json", true);
             //vatsimEvent.CalculationParameters.HighSimulationAccuracy = true;
             //vatsimEvent.CalculationParameters.HighVerbosity = true;
             //vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
-            await SimulateEvent(vatsimEvent);
-            SaveEventSimulation(vatsimEvent);
+            //await SimulateEvent(vatsimEvent);
+            //SaveEventSimulation(vatsimEvent);
         }
 
 

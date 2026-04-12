@@ -134,11 +134,6 @@ namespace CTPSimulator
             // set optimizer constraints
             double[] indexArray;
 
-            // set the maximum slots constraint
-            indexArray = new double[numberOfPossiblePaths];
-            for (int i = 0; i < numberOfPossiblePaths; i++) indexArray[i] = 1;
-            alglib.minlpsolveraddlc2dense(solver, indexArray, 0, maximumPossibleSlots);
-
             // set all the throughput points constraints
             foreach (var throughputPointIndexes in allThroughputPointIndexes)
             {
