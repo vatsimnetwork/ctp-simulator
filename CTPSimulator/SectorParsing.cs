@@ -9,72 +9,90 @@ namespace CTPSimulator
 {
     public static class SectorParsing
     {
-        public static async Task<Dictionary<string, List<SectorBoundary>>> LoadSectorBoundaries(string pathToBoundariesGeoJSON = null)
+        /// <summary>Attention: These are in a priority order. If the a sector with the same code is defined in multiple files, only the one from the highest file will be kept.</summary>
+        private static readonly string[] SectorLinks =
+        [
+            "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson",
+            //"https://raw.githubusercontent.com/vATCSCC/PERTI/refs/heads/main/assets/geojson/high.json",
+        ];
+
+        public static async Task<Dictionary<string, List<SectorBoundary>>> LoadSectorBoundaries()
         {
-            string json;
-            if (pathToBoundariesGeoJSON == null)
-            {
-                string resourceName = "CTPSimulator.Resources.Boundaries.geojson";
-                using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
-                using StreamReader reader = new StreamReader(stream);
-                json = reader.ReadToEnd();
-            }
-            else
-            {
-                json = File.ReadAllText(pathToBoundariesGeoJSON);
-            }
             Dictionary<string, List<SectorBoundary>> sectorBoundaries = new();
-            JObject boundariesJSON = JObject.Parse(json);
-            foreach (JToken boundary in boundariesJSON["features"])
+            var directory = Directory.CreateDirectory("Boundaries");
+            using var httpClient = new HttpClient();
+            HashSet<string> allDefinedCodes = new();
+
+            foreach (var link in SectorLinks)
             {
-                List<SectorBoundary> boundaries = new List<SectorBoundary>();
-                foreach (JToken polygon in boundary["geometry"]["coordinates"])
+                var uri = new Uri(link);
+                string fileName = Path.GetFileName(uri.LocalPath);
+                string filePath = Path.Combine(directory.FullName, fileName);
+                string json = await httpClient.GetStringAsync(uri);
+                HashSet<string> fileDefinedCodes = new();
+
+                JObject boundariesJSON = JObject.Parse(json);
+                foreach (JToken boundary in boundariesJSON["features"])
                 {
-                    List<JToken> coordinatesList = (polygon[0]).ToList();
-                    double[,] coordinatesArray = new double[coordinatesList.Count, 2];
-                    double minLat = double.MaxValue;
-                    double maxLat = double.MinValue;
-                    double minLon = double.MaxValue;
-                    double maxLon = double.MinValue;
-                    for (int i = 0; i < coordinatesList.Count; i++)
+                    var idJson = boundary["properties"]["id"];
+                    if (idJson == null) idJson = boundary["properties"]["label"];
+                    string code = idJson.ToString();
+
+                    if (allDefinedCodes.Contains(code)) continue; // skip if defined in previous file
+                    fileDefinedCodes.Add(code);
+
+                    List<SectorBoundary> boundaries = new List<SectorBoundary>();
+                    foreach (JToken polygon in boundary["geometry"]["coordinates"])
                     {
-                        double lat = (double)coordinatesList[i][1];
-                        double lon = (double)coordinatesList[i][0];
-                        if (lat < minLat)
+                        List<JToken> coordinatesList = (polygon[0]).ToList();
+                        double[,] coordinatesArray = new double[coordinatesList.Count, 2];
+                        double minLat = double.MaxValue;
+                        double maxLat = double.MinValue;
+                        double minLon = double.MaxValue;
+                        double maxLon = double.MinValue;
+                        for (int i = 0; i < coordinatesList.Count; i++)
                         {
-                            minLat = lat;
+                            double lat = (double)coordinatesList[i][1];
+                            double lon = (double)coordinatesList[i][0];
+                            if (lat < minLat)
+                            {
+                                minLat = lat;
+                            }
+                            if (lat > maxLat)
+                            {
+                                maxLat = lat;
+                            }
+                            if (lon < minLon)
+                            {
+                                minLon = lon;
+                            }
+                            if (lon > maxLon)
+                            {
+                                maxLon = lon;
+                            }
+                            coordinatesArray[i, 0] = lat;
+                            coordinatesArray[i, 1] = lon;
                         }
-                        if (lat > maxLat)
+                        boundaries.Add(new SectorBoundary
                         {
-                            maxLat = lat;
-                        }
-                        if (lon < minLon)
-                        {
-                            minLon = lon;
-                        }
-                        if (lon > maxLon)
-                        {
-                            maxLon = lon;
-                        }
-                        coordinatesArray[i, 0] = lat;
-                        coordinatesArray[i, 1] = lon;
+                            Coordinates = coordinatesArray,
+                            MaxLatitude = maxLat,
+                            MinLatitude = minLat,
+                            MinLongitude = minLon,
+                            MaxLongitude = maxLon
+                        });
                     }
-                    boundaries.Add(new SectorBoundary
+
+                    if (sectorBoundaries.TryGetValue(code, out var definedBoundaries))
                     {
-                        Coordinates = coordinatesArray,
-                        MaxLatitude = maxLat,
-                        MinLatitude = minLat,
-                        MinLongitude = minLon,
-                        MaxLongitude = maxLon
-                    });
+                        definedBoundaries.AddRange(boundaries);
+                    }
+                    else sectorBoundaries.Add(code, boundaries);
                 }
-                string code = (boundary["properties"]["id"]).ToString();
-                if (sectorBoundaries.TryGetValue(code, out var definedBoundaries))
-                {
-                    definedBoundaries.AddRange(boundaries);
-                }
-                else sectorBoundaries.Add(code, boundaries);
+
+                foreach (var code in fileDefinedCodes) allDefinedCodes.Add(code);
             }
+ 
             return sectorBoundaries;
         }
     }

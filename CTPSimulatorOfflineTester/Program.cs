@@ -21,9 +21,9 @@ namespace CTPSimulatorOfflineTester
 
             // event simulation
             var vatsimEvent = ReadVATSIMEventFromJson("response_1775766807652.json", true);
-            //vatsimEvent.CalculationParameters.HighSimulationAccuracy = true;
-            //vatsimEvent.CalculationParameters.HighVerbosity = true;
-            //vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
+            vatsimEvent.CalculationParameters.HighSimulationAccuracy = true;
+            vatsimEvent.CalculationParameters.HighVerbosity = true;
+            vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
             await SimulateEvent(vatsimEvent);
             SaveEventSimulation(vatsimEvent);
         }

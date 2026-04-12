@@ -186,7 +186,7 @@ namespace CTPSimulator
                     {
                         distanceToNextWaypoint -= timeSliceDistance;
                         currentTime += timeSlice;
-                        currentPosition.Move(nextWaypoint.Item2, bearingToNextWaypoint, vatsimEvent.CalculationParameters.SimulationEarthShape);
+                        currentPosition.Move(nextWaypoint.Item2, timeSliceDistance * 1852, vatsimEvent.CalculationParameters.SimulationEarthShape);
 
                         // we are not in synchronization mode (so log the throughput data)
                         if (!synchronizationMode)
