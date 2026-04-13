@@ -20,7 +20,9 @@ namespace CTPSimulatorOfflineTester
             Console.WriteLine();
 
             // event simulation
-            var vatsimEvent = ReadVATSIMEventFromJson("response_1775766807652.json", true);
+            var vatsimEvent = ReadVATSIMEventFromJson("example.json", true);
+            JsonWrapping.UnwrapAirportPairDepartureTimeWindowShiftingsIds(vatsimEvent);
+            vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode = SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.EarliestRoutes;
             vatsimEvent.CalculationParameters.HighSimulationAccuracy = true;
             vatsimEvent.CalculationParameters.HighVerbosity = true;
             vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
@@ -123,16 +125,6 @@ namespace CTPSimulatorOfflineTester
         {
             var sectorBoundaries = await SectorParsing.LoadSectorBoundaries();
             JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, sectorBoundaries);
-
-            // Unwrap deferred departure pairs into the lookup set
-            foreach (var pair in vatsimEvent.DeferredDeparturePairIds)
-                if (pair.Length == 2)
-                    vatsimEvent.DeferredDeparturePairs.Add((pair[0], pair[1]));
-
-            // Unwrap preferred departure pairs into the lookup set
-            foreach (var pair in vatsimEvent.PreferredDeparturePairIds)
-                if (pair.Length == 2)
-                    vatsimEvent.PreferredDeparturePairs.Add((pair[0], pair[1]));
 
             var stopWatch = Stopwatch.StartNew();
             await Simulator.SimulateEvent(vatsimEvent);

@@ -15,6 +15,10 @@ namespace CTPSimulator
         public bool HighVerbosity { get; set; } = false;
 
 
+
+
+
+        // SLOT GENERATION
         public enum SlotGenerationMode
         {
             Random,
@@ -30,24 +34,34 @@ namespace CTPSimulator
         public List<string> SlotGenerationOutputComments { get; set; } = new();
 
 
-        // SIMULATION
+
+
+
+        // SIMULATION: Slot time calculations
+
+        [JsonOnlyOnHighVerbositySerialization]
+        public TimeSpan DepartureTimeWindowLength { get; set; } = TimeSpan.FromHours(3); // how long will departure airports depart for?
+
+        // calculating the actual departure time window
         [JsonIgnoreOnSerialization]
         public double DepartureTimeWindowOffsetSynchronizationLongitude { get; set; } = -30;
 
-        [JsonIgnoreOnSerialization]
-        public uint SimulationAnalysisResolutionInMinutes { get; set; } = 2;
-
-        [JsonIgnoreOnSerialization]
-        /// <summary>Should the simulation try to use the weather forecast data of the actual event day (only available about 16 days in advance)?
-        /// Warning: Initially loading the forecast data might take a few minutes.
-        /// If false or if no forecast data is available, the data set will fall back to statistical average values.</summary>
-        public bool ShouldSimulationUseActualWeatherForecastData { get; set; } = false;
 
         public enum DepartureTimeWindowOffsetsCalculationMode
         {
+            /// <summary>Do not calculate any slot times, just simulate the event</summary>
             None,
+
+            /// <summary>Keep the departure WINDOW timings, but calculate the slot timings within those departure windows</summary>
+            CalculateSlotTimingsOnly,
+
+            /// <summary>Calculate departure window timings: Use the routes that reach the SynchronizationLongitude earliest as a reference, thereafter calculate slot timings</summary>
             EarliestRoutes,
+
+            /// <summary>Calculate departure window timings: Use the routes that reach the SynchronizationLongitude latest as a reference, thereafter calculate slot timings</summary>
             LatestRoutes,
+
+            /// <summary>Calculate departure window timings: Use the average of all times to reach the SynchronizationLongitude as a reference, thereafter calculate slot timings</summary>
             RouteAverage
         }
 
@@ -56,6 +70,20 @@ namespace CTPSimulator
 
         [JsonIgnoreOnSerialization]
         public TimeOnly DepartureTimeWindowOffsetSynchronizationTimeOfDay { get; set; } = new TimeOnly(16, 0);
+
+
+
+        // SIMULATION: actual slot simulation
+        [JsonIgnoreOnSerialization]
+        public uint SimulationAnalysisResolutionInMinutes { get; set; } = 2;
+
+
+        [JsonIgnoreOnSerialization]
+        /// <summary>Should the simulation try to use the weather forecast data of the actual event day (only available about 16 days in advance)?
+        /// Warning: Initially loading the forecast data might take a few minutes.
+        /// If false or if no forecast data is available, the data set will fall back to statistical average values.</summary>
+        public bool ShouldSimulationUseActualWeatherForecastData { get; set; } = false;
+
 
         [JsonIgnoreOnSerialization]
         public bool CalculateThroughputDataOnlyForManuallyProvidedSectors { get; set; } = true;

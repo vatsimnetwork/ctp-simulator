@@ -13,154 +13,83 @@ namespace CTPSimulator
         public static async Task SimulateEvent(VATSIMEvent vatsimEvent, CancellationToken cancellationToken = default)
         {
             // STEP 1: CALCULATE SLOT TIMINGS
-            // Group slots by departure airport and unique routing
-            Dictionary<Airport, List<List<Slot>>> slotsWithUniqueRoutings = new Dictionary<Airport, List<List<Slot>>>();
-            foreach (Slot slot in vatsimEvent.Slots)
+            if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode != SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.None)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!slotsWithUniqueRoutings.TryGetValue(slot.DepartureAirport, out var airportSlotSets))
+                // Group slots by departure airport and unique routing
+                Dictionary<Airport, Dictionary<Airport, List<List<Slot>>>> departureAirportSlotsWithUniqueRoutings = new();
+                foreach (Slot slot in vatsimEvent.Slots)
                 {
-                    slotsWithUniqueRoutings[slot.DepartureAirport] = [[slot]];
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!departureAirportSlotsWithUniqueRoutings.TryGetValue(slot.DepartureAirport, out var departureAirportSlotSets))
+                    {
+                        departureAirportSlotsWithUniqueRoutings[slot.DepartureAirport] = new() { [slot.ArrivalAirport] = [[slot]] };
+                    }
+                    else if (!departureAirportSlotSets.TryGetValue(slot.ArrivalAirport, out var uniqueAirportPairRoutings))
+                    {
+                        departureAirportSlotSets[slot.ArrivalAirport] = [[slot]];
+                    }
+                    else
+                    {
+                        var uniqueList = uniqueAirportPairRoutings.Find(uapr => uapr.First().RouteSegments.SequenceEqual(slot.RouteSegments));
+                        if (uniqueList == null) uniqueAirportPairRoutings.Add([slot]);
+                        else uniqueList.Add(slot);
+                    }
                 }
-                else
+
+                // go through all departure airports
+                foreach (var departureAirportSlots in departureAirportSlotsWithUniqueRoutings)
                 {
-                    var uniqueList = airportSlotSets.Find(ass => ass.First().RouteSegments.SequenceEqual(slot.RouteSegments));
-                    if (uniqueList == null) airportSlotSets.Add([slot]);
-                    else uniqueList.Add(slot);
+                    // When mode is not CalculateSlotTimingsOnly, simulate unique route combinations to calculate departure WINDOW offsets
+                    if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode != SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.CalculateSlotTimingsOnly)
+                    {
+                        // simulate single unique slot
+                        var firstSlotsOfEachUniqueRouting = departureAirportSlots.Value.Values.SelectMany(s => s.Select(ss => ss.First()));
+                        foreach (var slot in firstSlotsOfEachUniqueRouting)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            SimulateSlot(vatsimEvent, DateTimeOffset.MinValue, slot, true, cancellationToken);
+                        }
+
+                        // determine which of the calculated times to use
+                        TimeSpan timeUntilSynchronizationLongitude;
+                        if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode == SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.EarliestRoutes)
+                        {
+                            timeUntilSynchronizationLongitude = firstSlotsOfEachUniqueRouting.Min(s => s.TimeUntilSynchronizationLongitudeCrossing);
+                        }
+                        else if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode == SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.LatestRoutes)
+                        {
+                            timeUntilSynchronizationLongitude = firstSlotsOfEachUniqueRouting.Max(s => s.TimeUntilSynchronizationLongitudeCrossing);
+                        }
+                        else timeUntilSynchronizationLongitude = TimeSpan.FromSeconds(firstSlotsOfEachUniqueRouting.Average(s => s.TimeUntilSynchronizationLongitudeCrossing.TotalSeconds));
+
+                        // calculate offset
+                        departureAirportSlots.Key.DepartureTimeWindowStart = vatsimEvent.SynchronizationDateTime - timeUntilSynchronizationLongitude;
+                    }
+
+                    // calculate the actual slot timings
+
+
+
+
+                    // Distribute slots within the departure window (applies to all modes including None)
+                    //List<(Slot Slot, double Ordinator)> distributedSlots = new();
+                    //foreach (var slotSet in departureAirportSlots.Value)
+                    //{
+                    //    for (int i = 0; i < slotSet.Count; i++)
+                    //    {
+                    //        double ordinator = slotSet.Count == 1 ? 0.5 : (double)i / (slotSet.Count - 1);
+                    //        distributedSlots.Add((slotSet[i], ordinator));
+                    //    }
+                    //}
+
+                    //distributedSlots = distributedSlots.OrderBy(s => s.Ordinator).ToList();
+                    //foreach (var slot in distributedSlots)
+                    //{
+                    //    slot.Slot.DepartureTime = departureAirportSlots.Key.DepartureTimeWindowStart + vatsimEvent.DepartureTimeWindow * slot.Ordinator;
+                    //}
                 }
-                airportSlotSets = null;
             }
 
-            foreach (var departureSlots in slotsWithUniqueRoutings)
-            {
-                // When mode is not None, simulate routes to calculate departure window offsets
-                if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode != SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.None)
-                {
-                    // simulate single unique slot
-                    foreach (var slotSet in departureSlots.Value)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        SimulateSlot(vatsimEvent, DateTimeOffset.MinValue, slotSet.First(), true, cancellationToken);
-                    }
-
-                    // determine which of the calculated times to use
-                    TimeSpan timeUntilSynchronizationLongitude;
-                    if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode == SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.EarliestRoutes)
-                    {
-                        timeUntilSynchronizationLongitude = departureSlots.Value.Min(ds => ds.First().TimeUntilSynchronizationLongitudeCrossing);
-                    }
-                    else if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode == SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.LatestRoutes)
-                    {
-                        timeUntilSynchronizationLongitude = departureSlots.Value.Max(ds => ds.First().TimeUntilSynchronizationLongitudeCrossing);
-                    }
-                    else timeUntilSynchronizationLongitude = TimeSpan.FromSeconds(departureSlots.Value.Average(ds => ds.First().TimeUntilSynchronizationLongitudeCrossing.TotalSeconds));
-
-                    // calculate offset
-                    departureSlots.Key.DepartureTimeWindowStart = vatsimEvent.SynchronizationDateTime - timeUntilSynchronizationLongitude;
-                }
-
-                // Distribute slots within the departure window (applies to all modes including None)
-                List<(Slot Slot, double Ordinator)> distributedSlots = new();
-                foreach (var slotSet in departureSlots.Value)
-                {
-                    for (int i = 0; i < slotSet.Count; i++)
-                    {
-                        double ordinator = slotSet.Count == 1 ? 0.5 : (double)i / (slotSet.Count - 1);
-                        distributedSlots.Add((slotSet[i], ordinator));
-                    }
-                }
-
-                // Partition into preferred (early), normal, and deferred (late) groups.
-                // Preferred-pair slots are placed at the start of the departure window.
-                // Deferred-pair slots are placed at the end of the departure window.
-                if (vatsimEvent.DeferredDeparturePairs.Count > 0 || vatsimEvent.PreferredDeparturePairs.Count > 0)
-                {
-                    var preferred = distributedSlots
-                        .Where(s => vatsimEvent.PreferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
-                        .OrderBy(s => s.Ordinator).ToList();
-                    var deferred = distributedSlots
-                        .Where(s => vatsimEvent.DeferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
-                        .OrderBy(s => s.Ordinator).ToList();
-                    var normal = distributedSlots
-                        .Where(s =>
-                            !vatsimEvent.PreferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)) &&
-                            !vatsimEvent.DeferredDeparturePairs.Contains((s.Slot.DepartureAirport.Id, s.Slot.ArrivalAirport.Id)))
-                        .OrderBy(s => s.Ordinator).ToList();
-
-                    if (preferred.Count > 0 || normal.Count > 0 || deferred.Count > 0)
-                    {
-                        int totalCount = distributedSlots.Count;
-
-                        distributedSlots = new();
-
-                        if (preferred.Count > 0 && deferred.Count > 0)
-                        {
-                            double prefEnd = (double)preferred.Count / totalCount / 2;
-                            double defStart = 1.0 - (double)deferred.Count / totalCount / 2;
-
-                            for (int i = 0; i < preferred.Count; i++)
-                            {
-                                double ord = preferred.Count == 1 ? prefEnd / 2 : prefEnd * i / (preferred.Count - 1);
-                                distributedSlots.Add((preferred[i].Slot, ord));
-                            }
-                            for (int i = 0; i < normal.Count; i++)
-                            {
-                                double ord = prefEnd + (defStart - prefEnd) * (normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1));
-                                distributedSlots.Add((normal[i].Slot, ord));
-                            }
-                            for (int i = 0; i < deferred.Count; i++)
-                            {
-                                double ord = defStart + (1.0 - defStart) * (deferred.Count == 1 ? 0.5 : (double)i / (deferred.Count - 1));
-                                distributedSlots.Add((deferred[i].Slot, ord));
-                            }
-                        }
-                        else if (preferred.Count > 0)
-                        {
-                            double prefEnd = (double)preferred.Count / totalCount;
-
-                            for (int i = 0; i < preferred.Count; i++)
-                            {
-                                double ord = preferred.Count == 1 ? prefEnd / 2 : prefEnd * i / (preferred.Count - 1);
-                                distributedSlots.Add((preferred[i].Slot, ord));
-                            }
-                            for (int i = 0; i < normal.Count; i++)
-                            {
-                                double ord = prefEnd + (1.0 - prefEnd) * (normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1));
-                                distributedSlots.Add((normal[i].Slot, ord));
-                            }
-                        }
-                        else if (deferred.Count > 0)
-                        {
-                            double defStart = 1.0 - (double)deferred.Count / totalCount;
-
-                            for (int i = 0; i < normal.Count; i++)
-                            {
-                                double ord = defStart * (normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1));
-                                distributedSlots.Add((normal[i].Slot, ord));
-                            }
-                            for (int i = 0; i < deferred.Count; i++)
-                            {
-                                double ord = defStart + (1.0 - defStart) * (deferred.Count == 1 ? 0.5 : (double)i / (deferred.Count - 1));
-                                distributedSlots.Add((deferred[i].Slot, ord));
-                            }
-                        }
-                        else
-                        {
-                            for (int i = 0; i < normal.Count; i++)
-                            {
-                                double ord = normal.Count == 1 ? 0.5 : (double)i / (normal.Count - 1);
-                                distributedSlots.Add((normal[i].Slot, ord));
-                            }
-                        }
-                    }
-                }
-
-                distributedSlots = distributedSlots.OrderBy(s => s.Ordinator).ToList();
-                foreach (var slot in distributedSlots)
-                {
-                    slot.Slot.DepartureTime = departureSlots.Key.DepartureTimeWindowStart + vatsimEvent.DepartureTimeWindow * slot.Ordinator;
-                }
-            }
 
             // STEP 2: SIMULATE SLOTS
             foreach (var slot in vatsimEvent.Slots)

@@ -22,43 +22,51 @@ namespace CTPSimulator
         [JsonOnlyOnHighVerbositySerialization]
         public DateOnly Date { get; set; }
 
-        [JsonOnlyOnHighVerbositySerialization]
-        public TimeSpan DepartureTimeWindow { get; set; } = TimeSpan.FromHours(3); // how long will departure airports depart for?
 
 
         public SimulatorCalculationParameters CalculationParameters { get; set; } = new();
+
+
+        [JsonIgnoreOnSerialization]
+        public Dictionary<ulong, Dictionary<ulong, double[]>> AirportPairDepartureTimeWindowShiftingsIds { get; set; } = new();
+
+        [JsonIgnore]
+        public Dictionary<Airport, Dictionary<Airport, (TimeSpan, TimeSpan)>> AirportPairDepartureTimeWindowShiftings { get; set; } = new();
+
 
 
         // throughput points
         [JsonOnlyOnSimulateEventSerialization]
         public List<Airport> Airports { get; set; } = new();
 
-        [JsonIgnore]
+        [JsonIgnoreOnSerialization]
         public Dictionary<ulong, Airport> AirportsById = new();
 
         [JsonOnlyOnSimulateEventSerialization]
         public List<Location> Waypoints { get; set; } = new();
 
-        [JsonIgnore]
+        [JsonIgnoreOnSerialization]
         public Dictionary<ulong, Location> WaypointsById = new();
 
         [JsonOnlyOnSimulateEventSerialization]
         public List<RouteSegment> RouteSegments { get; set; } = new();
 
-        [JsonIgnore]
+        [JsonIgnoreOnSerialization]
         public Dictionary<ulong, RouteSegment> RouteSegmentsById = new();
 
         [JsonOnlyOnSimulateEventSerialization]
         public List<Sector> Sectors { get; set; } = new();
 
-        [JsonIgnore]
+        [JsonIgnoreOnSerialization]
         public Dictionary<ulong, Sector> SectorsById = new();
 
         [JsonOnlyOnSimulateEventSerialization]
         public List<ThroughputPoint> TagLimits { get; set; } = new();
 
-        [JsonIgnore]
+        [JsonIgnoreOnSerialization]
         public Dictionary<ulong, ThroughputPoint> TagLimitsById = new();
+
+
 
 
         // values populated by the simulator
@@ -70,20 +78,6 @@ namespace CTPSimulator
 
 
         public List<Slot> Slots { get; set; } = new();
-
-        // Deferred departure pairs: array of [depAirportId, arrAirportId].
-        // Slots matching these pairs are placed at the end of the departure window.
-        public List<ulong[]> DeferredDeparturePairIds { get; set; } = new();
-
-        [JsonIgnore]
-        public HashSet<(ulong, ulong)> DeferredDeparturePairs { get; set; } = new();
-
-        // Preferred departure pairs: array of [depAirportId, arrAirportId].
-        // Slots matching these pairs are placed at the start of the departure window.
-        public List<ulong[]> PreferredDeparturePairIds { get; set; } = new();
-
-        [JsonIgnore]
-        public HashSet<(ulong, ulong)> PreferredDeparturePairs { get; set; } = new();
 
 
         // values / functions only for the simulator internally

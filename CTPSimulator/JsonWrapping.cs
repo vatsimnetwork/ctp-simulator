@@ -131,6 +131,22 @@ namespace CTPSimulator
                 }
             }
         }
+        public static void UnwrapAirportPairDepartureTimeWindowShiftingsIds(VATSIMEvent vatsimEvent)
+        {
+            foreach (var departurePairShiftingsIds in vatsimEvent.AirportPairDepartureTimeWindowShiftingsIds)
+            {
+                if (!vatsimEvent.AirportsById.TryGetValue(departurePairShiftingsIds.Key, out var departureAirport)) throw new ArgumentException("AirportPairDepartureTimeWindowShiftingsIds DepartureAirport Id not found: " + departurePairShiftingsIds.Key);
+                Dictionary<Airport, (TimeSpan, TimeSpan)> departurePairShiftings = new();
+                foreach (var arrivalShiftingIds in departurePairShiftingsIds.Value)
+                {
+                    if (!vatsimEvent.AirportsById.TryGetValue(arrivalShiftingIds.Key, out var arrivalAirport)) throw new ArgumentException("AirportPairDepartureTimeWindowShiftingsIds Arrival Id not found: " + arrivalShiftingIds.Key);
+                    if (arrivalShiftingIds.Value.Length != 2) throw new ArgumentException("Bad number of arguments given for AirportPairDepartureTimeWindowShiftingsIds time shifting values");
+                    departurePairShiftings.Add(arrivalAirport, (TimeSpan.FromHours(arrivalShiftingIds.Value[0]), TimeSpan.FromHours(arrivalShiftingIds.Value[1])));
+                }
+                vatsimEvent.AirportPairDepartureTimeWindowShiftings.Add(departureAirport, departurePairShiftings);
+            }
+        }
+
         public static void WrapAllSlotAirportsAndRouteSegments(VATSIMEvent vatsimEvent)
         {
             foreach (var slot in vatsimEvent.Slots)

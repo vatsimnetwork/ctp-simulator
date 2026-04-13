@@ -50,6 +50,7 @@ namespace CTPSimulatorContainer
             catch (Exception ex)
             {
                 Console.WriteLine("Error extracting vatsim event from JSON.");
+                Console.WriteLine(ex);
                 throw;
             }
         }
@@ -64,7 +65,6 @@ namespace CTPSimulatorContainer
         {
             try
             {
-                Console.WriteLine("[REQUEST] CreateSlotDistribution");
                 var vatsimEvent = extractVatsimEvent(context);
                 JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
                 await SlotDistributionCreator.CreateSlotDistribution(vatsimEvent);
@@ -74,6 +74,7 @@ namespace CTPSimulatorContainer
             }
             catch (Exception ex)
             {
+                Console.WriteLine("Error creating slot distribution.");
                 Console.WriteLine(ex);
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 await context.SendStringAsync(ex.ToString(), "text/plain", System.Text.Encoding.UTF8);
@@ -83,21 +84,14 @@ namespace CTPSimulatorContainer
         {
             try
             {
-                Console.WriteLine("[REQUEST] SimulateEvent");
                 var vatsimEvent = extractVatsimEvent(context);
+                if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode != SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.None)
+                {
+                    JsonWrapping.UnwrapAirportPairDepartureTimeWindowShiftingsIds(vatsimEvent);
+                }    
                 JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
                 JsonWrapping.UnwrapAllSlotAirportsAndRouteSegments(vatsimEvent);
                 JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, SectorBoundaries);
-
-                // Unwrap deferred departure pairs into the lookup set
-                foreach (var pair in vatsimEvent.DeferredDeparturePairIds)
-                    if (pair.Length == 2)
-                        vatsimEvent.DeferredDeparturePairs.Add((pair[0], pair[1]));
-
-                // Unwrap preferred departure pairs into the lookup set
-                foreach (var pair in vatsimEvent.PreferredDeparturePairIds)
-                    if (pair.Length == 2)
-                        vatsimEvent.PreferredDeparturePairs.Add((pair[0], pair[1]));
 
                 // simulate
                 await Simulator.SimulateEvent(vatsimEvent);
@@ -107,6 +101,7 @@ namespace CTPSimulatorContainer
             }
             catch (Exception ex)
             {
+                Console.WriteLine("Error simulating event.");
                 Console.WriteLine(ex);
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 await context.SendStringAsync(ex.ToString(), "text/plain", System.Text.Encoding.UTF8);
