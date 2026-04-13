@@ -18,7 +18,7 @@ namespace CTPSimulatorContainer
             Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
 
             // load sectors
-            SectorBoundaries = await SectorParsing.LoadSectorBoundaries();
+            SectorBoundaries = await SectorParsing.DownloadSectorBoundaries(false);
 
             // start the webserver
             using (var server = new WebServer("http://*:8080")
@@ -89,7 +89,7 @@ namespace CTPSimulatorContainer
                 if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode != SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.None)
                 {
                     JsonWrapping.UnwrapAirportPairDepartureTimeWindowShiftingsIds(vatsimEvent);
-                }    
+                }
                 JsonWrapping.UnwrapAllSlotAirportsAndRouteSegments(vatsimEvent);
                 JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, SectorBoundaries);
 

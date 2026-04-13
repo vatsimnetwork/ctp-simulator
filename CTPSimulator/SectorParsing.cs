@@ -16,7 +16,8 @@ namespace CTPSimulator
             //"https://raw.githubusercontent.com/vATCSCC/PERTI/refs/heads/main/assets/geojson/high.json",
         ];
 
-        public static async Task<Dictionary<string, List<SectorBoundary>>> LoadSectorBoundaries()
+
+        public static async Task<Dictionary<string, List<SectorBoundary>>> DownloadSectorBoundaries(bool fileCaching)
         {
             Dictionary<string, List<SectorBoundary>> sectorBoundaries = new();
             var directory = Directory.CreateDirectory("Boundaries");
@@ -25,10 +26,17 @@ namespace CTPSimulator
 
             foreach (var link in SectorLinks)
             {
-                var uri = new Uri(link);
-                string fileName = Path.GetFileName(uri.LocalPath);
-                string filePath = Path.Combine(directory.FullName, fileName);
-                string json = await httpClient.GetStringAsync(uri);
+                var uri = new Uri(link);               
+                string filePath = Path.Combine(directory.FullName, Path.GetFileName(uri.LocalPath));
+
+                string json;
+                if (fileCaching && File.Exists(filePath)) json = File.ReadAllText(filePath);
+                else
+                {
+                    json = await httpClient.GetStringAsync(uri);
+                    if (fileCaching) File.WriteAllText(filePath, json);
+                }
+
                 HashSet<string> fileDefinedCodes = new();
 
                 JObject boundariesJSON = JObject.Parse(json);

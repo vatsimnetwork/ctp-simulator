@@ -20,12 +20,12 @@ namespace CTPSimulatorOfflineTester
             Console.WriteLine();
 
             // event simulation
-            var vatsimEvent = ReadVATSIMEventFromJson("example.json", true);
-            JsonWrapping.UnwrapAirportPairDepartureTimeWindowShiftingsIds(vatsimEvent);
-            vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode = SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.EarliestRoutes;
+            var vatsimEvent = ReadVATSIMEventFromJson("response_1776120285461.json", true);
+            //JsonWrapping.UnwrapAirportPairDepartureTimeWindowShiftingsIds(vatsimEvent);
+            vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode = SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.None;
             vatsimEvent.CalculationParameters.HighSimulationAccuracy = true;
             vatsimEvent.CalculationParameters.HighVerbosity = true;
-            vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 550;
+            vatsimEvent.CalculationParameters.CalculationFallbackGroundSpeed = 530;
             await SimulateEvent(vatsimEvent);
             SaveEventSimulation(vatsimEvent);
         }
@@ -123,7 +123,7 @@ namespace CTPSimulatorOfflineTester
         }
         static async Task SimulateEvent(VATSIMEvent vatsimEvent)
         {
-            var sectorBoundaries = await SectorParsing.LoadSectorBoundaries();
+            var sectorBoundaries = await SectorParsing.DownloadSectorBoundaries(true);
             JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, sectorBoundaries);
 
             var stopWatch = Stopwatch.StartNew();

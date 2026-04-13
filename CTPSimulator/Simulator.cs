@@ -80,24 +80,15 @@ namespace CTPSimulator
             }
         }
 
-        private static void DistributeDepartureAirportSlots(
-            VATSIMEvent vatsimEvent,
-            Airport departureAirport,
-            Dictionary<Airport, List<List<Slot>>> arrivalBuckets,
-            CancellationToken cancellationToken)
+        private static void DistributeDepartureAirportSlots(VATSIMEvent vatsimEvent, Airport departureAirport, Dictionary<Airport, List<List<Slot>>> arrivalBuckets, CancellationToken cancellationToken)
         {
             // Total slots from this departure airport (across all arrivals / unique routings).
-            int N = 0;
-            foreach (var uniqueRoutings in arrivalBuckets.Values)
-                foreach (var slotList in uniqueRoutings)
-                    N += slotList.Count;
-            if (N == 0) return;
+            int n = arrivalBuckets.Sum(b => b.Value.Sum(sl => sl.Count));
+            if (n == 0) return;
 
-            DateTimeOffset T0 = departureAirport.DepartureTimeWindowStart;
-            TimeSpan W = vatsimEvent.CalculationParameters.DepartureTimeWindowLength;
-            double baseIntervalSeconds = W.TotalSeconds / N;
-            if (baseIntervalSeconds <= 0)
-                throw new InvalidOperationException($"DepartureTimeWindowLength must be positive to distribute slots (departure airport {departureAirport.Identifier}).");
+            DateTimeOffset t0 = departureAirport.DepartureTimeWindowStart;
+            double baseIntervalSeconds = vatsimEvent.CalculationParameters.DepartureTimeWindowLength.TotalSeconds / n;
+            if (baseIntervalSeconds <= 0) throw new InvalidOperationException($"DepartureTimeWindowLength must be positive to distribute slots (departure airport {departureAirport.Identifier}).");
 
             // Per-arrival allowed grid index range and demand.
             var arrivalInfo = new Dictionary<Airport, (int kMin, int kMax, int demand, List<int> assigned)>();
@@ -124,7 +115,7 @@ namespace CTPSimulator
                 // t_k = T0 + (k + 0.5) * baseInterval must lie in [T0 + deltaStart, T0 + W + deltaEnd]
                 // => k >= deltaStart/baseInterval - 0.5   and   k <= (W + deltaEnd)/baseInterval - 0.5
                 double kMinReal = deltaStart.TotalSeconds / baseIntervalSeconds - 0.5;
-                double kMaxReal = (W.TotalSeconds + deltaEnd.TotalSeconds) / baseIntervalSeconds - 0.5;
+                double kMaxReal = (vatsimEvent.CalculationParameters.DepartureTimeWindowLength.TotalSeconds + deltaEnd.TotalSeconds) / baseIntervalSeconds - 0.5;
                 int kMin = (int)Math.Ceiling(kMinReal - 1e-9);
                 int kMax = (int)Math.Floor(kMaxReal + 1e-9);
 
@@ -254,7 +245,7 @@ namespace CTPSimulator
                     {
                         int k = info.assigned[i++];
                         double offsetSeconds = (k + 0.5) * baseIntervalSeconds;
-                        slot.DepartureTime = T0 + TimeSpan.FromSeconds(offsetSeconds);
+                        slot.DepartureTime = t0 + TimeSpan.FromSeconds(offsetSeconds);
                     }
                 }
             }
