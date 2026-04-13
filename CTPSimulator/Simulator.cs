@@ -144,13 +144,18 @@ namespace CTPSimulator
                 if (kMax > kEnd) kEnd = kMax;
             }
 
-            // Primary sweep: 2-step cooldown between same-arrival slots.
+            // Primary sweep: 2-step cooldown between same-arrival slots, deadline-based selection.
+            // For each arrival with demand d in its allowed range of size S = kMax - kMin + 1,
+            // the ideal indices are kMin + (i + 0.5) * (S / d) for i = 0..d-1 — an even spread across
+            // its own window. At each grid index we only place an arrival that is at-or-past its next
+            // ideal, preferring the most overdue. This stops high-demand pairs from dense-packing the
+            // front of the sweep when they in fact have plenty of room to spread out.
             for (int k = kStart; k <= kEnd; k++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 Airport best = null;
-                double bestPressure = double.NegativeInfinity;
+                double bestDelta = double.NegativeInfinity;
                 foreach (var kvp in arrivalInfo)
                 {
                     var info = kvp.Value;
@@ -159,13 +164,14 @@ namespace CTPSimulator
                     if (k < info.kMin || k > info.kMax) continue;
                     if (info.assigned.Count > 0 && k - info.assigned[info.assigned.Count - 1] < 2) continue;
 
-                    // # of future usable grid indices under cooldown ~= (remaining span) / 2
-                    int futureSpan = info.kMax - k + 1;
-                    double futureCapacity = Math.Max(1.0, futureSpan / 2.0);
-                    double pressure = remaining / futureCapacity;
-                    if (pressure > bestPressure)
+                    double span = info.kMax - info.kMin + 1.0;
+                    double stride = span / info.demand;
+                    double ideal = info.kMin + (info.assigned.Count + 0.5) * stride;
+                    double delta = k - ideal;
+                    if (delta < 0) continue; // not yet due — leave k idle for a more-pressing arrival or empty
+                    if (delta > bestDelta)
                     {
-                        bestPressure = pressure;
+                        bestDelta = delta;
                         best = kvp.Key;
                     }
                 }
