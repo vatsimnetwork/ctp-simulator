@@ -66,27 +66,8 @@ namespace CTPSimulator
                         departureAirportSlots.Key.DepartureTimeWindowStart = vatsimEvent.SynchronizationDateTime - timeUntilSynchronizationLongitude;
                     }
 
-                    // calculate the actual slot timings
-
-
-
-
-                    // Distribute slots within the departure window (applies to all modes including None)
-                    //List<(Slot Slot, double Ordinator)> distributedSlots = new();
-                    //foreach (var slotSet in departureAirportSlots.Value)
-                    //{
-                    //    for (int i = 0; i < slotSet.Count; i++)
-                    //    {
-                    //        double ordinator = slotSet.Count == 1 ? 0.5 : (double)i / (slotSet.Count - 1);
-                    //        distributedSlots.Add((slotSet[i], ordinator));
-                    //    }
-                    //}
-
-                    //distributedSlots = distributedSlots.OrderBy(s => s.Ordinator).ToList();
-                    //foreach (var slot in distributedSlots)
-                    //{
-                    //    slot.Slot.DepartureTime = departureAirportSlots.Key.DepartureTimeWindowStart + vatsimEvent.DepartureTimeWindow * slot.Ordinator;
-                    //}
+                    // Distribute slots across the departure window honoring per-arrival-pair window shiftings.
+                    DistributeDepartureAirportSlots(vatsimEvent, departureAirportSlots.Key, departureAirportSlots.Value, cancellationToken);
                 }
             }
 
@@ -96,6 +77,180 @@ namespace CTPSimulator
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 SimulateSlot(vatsimEvent, slot.DepartureTime, slot, false, cancellationToken);
+            }
+        }
+
+        private static void DistributeDepartureAirportSlots(
+            VATSIMEvent vatsimEvent,
+            Airport departureAirport,
+            Dictionary<Airport, List<List<Slot>>> arrivalBuckets,
+            CancellationToken cancellationToken)
+        {
+            // Total slots from this departure airport (across all arrivals / unique routings).
+            int N = 0;
+            foreach (var uniqueRoutings in arrivalBuckets.Values)
+                foreach (var slotList in uniqueRoutings)
+                    N += slotList.Count;
+            if (N == 0) return;
+
+            DateTimeOffset T0 = departureAirport.DepartureTimeWindowStart;
+            TimeSpan W = vatsimEvent.CalculationParameters.DepartureTimeWindowLength;
+            double baseIntervalSeconds = W.TotalSeconds / N;
+            if (baseIntervalSeconds <= 0)
+                throw new InvalidOperationException($"DepartureTimeWindowLength must be positive to distribute slots (departure airport {departureAirport.Identifier}).");
+
+            // Per-arrival allowed grid index range and demand.
+            var arrivalInfo = new Dictionary<Airport, (int kMin, int kMax, int demand, List<int> assigned)>();
+            vatsimEvent.AirportPairDepartureTimeWindowShiftings.TryGetValue(departureAirport, out var shiftingsForDep);
+
+            int kStart = int.MaxValue;
+            int kEnd = int.MinValue;
+
+            foreach (var kvp in arrivalBuckets)
+            {
+                Airport arrival = kvp.Key;
+                int demand = 0;
+                foreach (var slotList in kvp.Value) demand += slotList.Count;
+                if (demand == 0) continue;
+
+                TimeSpan deltaStart = TimeSpan.Zero;
+                TimeSpan deltaEnd = TimeSpan.Zero;
+                if (shiftingsForDep != null && shiftingsForDep.TryGetValue(arrival, out var shift))
+                {
+                    deltaStart = shift.Item1;
+                    deltaEnd = shift.Item2;
+                }
+
+                // t_k = T0 + (k + 0.5) * baseInterval must lie in [T0 + deltaStart, T0 + W + deltaEnd]
+                // => k >= deltaStart/baseInterval - 0.5   and   k <= (W + deltaEnd)/baseInterval - 0.5
+                double kMinReal = deltaStart.TotalSeconds / baseIntervalSeconds - 0.5;
+                double kMaxReal = (W.TotalSeconds + deltaEnd.TotalSeconds) / baseIntervalSeconds - 0.5;
+                int kMin = (int)Math.Ceiling(kMinReal - 1e-9);
+                int kMax = (int)Math.Floor(kMaxReal + 1e-9);
+
+                if (kMax < kMin)
+                {
+                    // Shifted window collapses below one grid step: collapse to the single nearest grid index
+                    // and let the widening fallback below find additional positions. Warn the user.
+                    int kMid = (int)Math.Round((kMinReal + kMaxReal) / 2.0);
+                    vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add(
+                        $"Warning: airport pair {departureAirport.Identifier}->{arrival.Identifier} has a departure window shift that leaves no room for any slot; {demand} slot(s) will be placed near the shifted window anyway and may violate the per-pair 2x spacing rule.");
+                    kMin = kMid;
+                    kMax = kMid;
+                }
+
+                arrivalInfo[arrival] = (kMin, kMax, demand, new List<int>(demand));
+                if (kMin < kStart) kStart = kMin;
+                if (kMax > kEnd) kEnd = kMax;
+            }
+
+            // Primary sweep: 2-step cooldown between same-arrival slots.
+            for (int k = kStart; k <= kEnd; k++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                Airport best = null;
+                double bestPressure = double.NegativeInfinity;
+                foreach (var kvp in arrivalInfo)
+                {
+                    var info = kvp.Value;
+                    int remaining = info.demand - info.assigned.Count;
+                    if (remaining <= 0) continue;
+                    if (k < info.kMin || k > info.kMax) continue;
+                    if (info.assigned.Count > 0 && k - info.assigned[info.assigned.Count - 1] < 2) continue;
+
+                    // # of future usable grid indices under cooldown ~= (remaining span) / 2
+                    int futureSpan = info.kMax - k + 1;
+                    double futureCapacity = Math.Max(1.0, futureSpan / 2.0);
+                    double pressure = remaining / futureCapacity;
+                    if (pressure > bestPressure)
+                    {
+                        bestPressure = pressure;
+                        best = kvp.Key;
+                    }
+                }
+
+                if (best != null)
+                    arrivalInfo[best].assigned.Add(k);
+            }
+
+            // Global occupancy (used across relaxation + widening passes).
+            var globalOccupied = new HashSet<int>();
+            foreach (var kvp in arrivalInfo)
+                foreach (var idx in kvp.Value.assigned)
+                    globalOccupied.Add(idx);
+
+            // Relaxation pass: for any arrival still under-filled, allow cooldown = 1 (but still unique grid indices).
+            foreach (var arrival in arrivalInfo.Keys.ToList())
+            {
+                var info = arrivalInfo[arrival];
+                if (info.assigned.Count >= info.demand) continue;
+
+                for (int k = info.kMin; k <= info.kMax && info.assigned.Count < info.demand; k++)
+                {
+                    if (globalOccupied.Contains(k)) continue;
+                    info.assigned.Add(k);
+                    globalOccupied.Add(k);
+                }
+
+                arrivalInfo[arrival] = info;
+            }
+
+            // Widening fallback: for any arrival still under-filled, expand outward one grid step at a time
+            // from its allowed range until we have enough unique positions. This violates the shifted window
+            // and/or the 2x spacing rule, so emit a warning but keep going so slots are never dropped.
+            foreach (var arrival in arrivalInfo.Keys.ToList())
+            {
+                var info = arrivalInfo[arrival];
+                if (info.assigned.Count >= info.demand) continue;
+
+                int shortfall = info.demand - info.assigned.Count;
+                int lo = info.kMin - 1;
+                int hi = info.kMax + 1;
+                int safetyBudget = Math.Max(1024, info.demand * 4);
+                while (info.assigned.Count < info.demand && safetyBudget-- > 0)
+                {
+                    if (!globalOccupied.Contains(hi))
+                    {
+                        info.assigned.Add(hi);
+                        globalOccupied.Add(hi);
+                        if (info.assigned.Count >= info.demand) break;
+                    }
+                    if (!globalOccupied.Contains(lo))
+                    {
+                        info.assigned.Add(lo);
+                        globalOccupied.Add(lo);
+                    }
+                    lo--;
+                    hi++;
+                }
+
+                arrivalInfo[arrival] = info;
+
+                vatsimEvent.CalculationParameters.SlotGenerationOutputComments.Add(
+                    $"Warning: airport pair {departureAirport.Identifier}->{arrival.Identifier} is overbooked for its shifted window ({info.demand} slot(s) requested, {info.demand - shortfall} fit cleanly); remaining {shortfall} placed outside the requested window and the departure rate limit and/or per-pair 2x spacing rule may be violated.");
+
+                if (info.assigned.Count < info.demand)
+                    throw new InvalidOperationException(
+                        $"Unable to place all slots for {departureAirport.Identifier}->{arrival.Identifier} even after widening (hit safety budget).");
+            }
+
+            // Write back DepartureTime values. Within each arrival bucket, flatten unique-routing lists
+            // in existing order and pair 1-to-1 with assigned grid indices sorted ascending.
+            foreach (var kvp in arrivalBuckets)
+            {
+                if (!arrivalInfo.TryGetValue(kvp.Key, out var info)) continue;
+                info.assigned.Sort();
+                int i = 0;
+                foreach (var slotList in kvp.Value)
+                {
+                    foreach (var slot in slotList)
+                    {
+                        int k = info.assigned[i++];
+                        double offsetSeconds = (k + 0.5) * baseIntervalSeconds;
+                        slot.DepartureTime = T0 + TimeSpan.FromSeconds(offsetSeconds);
+                    }
+                }
             }
         }
 

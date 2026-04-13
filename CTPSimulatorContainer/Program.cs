@@ -85,11 +85,11 @@ namespace CTPSimulatorContainer
             try
             {
                 var vatsimEvent = extractVatsimEvent(context);
+                JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
                 if (vatsimEvent.CalculationParameters.IntendedDepartureTimeWindowOffsetsCalculationMode != SimulatorCalculationParameters.DepartureTimeWindowOffsetsCalculationMode.None)
                 {
                     JsonWrapping.UnwrapAirportPairDepartureTimeWindowShiftingsIds(vatsimEvent);
                 }    
-                JsonWrapping.UnwrapAllRouteSegmentData(vatsimEvent);
                 JsonWrapping.UnwrapAllSlotAirportsAndRouteSegments(vatsimEvent);
                 JsonWrapping.UnwrapSectorBoundaries(vatsimEvent, SectorBoundaries);
 
