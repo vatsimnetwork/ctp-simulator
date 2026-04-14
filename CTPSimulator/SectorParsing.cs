@@ -10,10 +10,11 @@ namespace CTPSimulator
     public static class SectorParsing
     {
         /// <summary>Attention: These are in a priority order. If the a sector with the same code is defined in multiple files, only the one from the highest file will be kept.</summary>
-        private static readonly string[] SectorLinks =
+        private static readonly (string, bool)[] SectorLinks =
         [
-            "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson",
-            //"https://raw.githubusercontent.com/vATCSCC/PERTI/refs/heads/main/assets/geojson/high.json",
+            // link : quadruple nesting
+            ("https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson", true), // quadruple nested
+            ("https://raw.githubusercontent.com/vATCSCC/PERTI/refs/heads/main/assets/geojson/high.json", false), // triple nested
         ];
 
 
@@ -26,7 +27,7 @@ namespace CTPSimulator
 
             foreach (var link in SectorLinks)
             {
-                var uri = new Uri(link);               
+                var uri = new Uri(link.Item1);
                 string filePath = Path.Combine(directory.FullName, Path.GetFileName(uri.LocalPath));
 
                 string json;
@@ -52,7 +53,7 @@ namespace CTPSimulator
                     List<SectorBoundary> boundaries = new List<SectorBoundary>();
                     foreach (JToken polygon in boundary["geometry"]["coordinates"])
                     {
-                        List<JToken> coordinatesList = (polygon[0]).ToList();
+                        List<JToken> coordinatesList = link.Item2 ? (polygon[0]).ToList() : polygon.ToList(); // quadruple or triple nesting
                         double[,] coordinatesArray = new double[coordinatesList.Count, 2];
                         double minLat = double.MaxValue;
                         double maxLat = double.MinValue;
