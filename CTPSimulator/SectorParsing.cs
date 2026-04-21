@@ -10,12 +10,20 @@ namespace CTPSimulator
     public static class SectorParsing
     {
         /// <summary>Attention: These are in a priority order. If the a sector with the same code is defined in multiple files, only the one from the highest file will be kept.</summary>
-        private static readonly (string, bool)[] SectorLinks =
+        private static readonly string[] SectorLinks =
         [
-            // link : quadruple nesting
-            ("https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson", true), // quadruple nested
-            ("https://raw.githubusercontent.com/vATCSCC/PERTI/refs/heads/main/assets/geojson/high.json", false), // triple nested
+            "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson",
+            "https://raw.githubusercontent.com/vATCSCC/PERTI/refs/heads/main/assets/geojson/high.json",
         ];
+
+        /// <summary>Detects the nesting level of a polygon by checking if the first element is an array (indicating additional nesting)</summary>
+        private static bool IsQuadrupleNested(JToken polygon)
+        {
+            if (polygon.Type != JTokenType.Array || !polygon.HasValues) return false;
+
+            var firstElement = polygon.First;
+            return firstElement?.Type == JTokenType.Array && firstElement.HasValues && firstElement.First?.Type == JTokenType.Array;
+        }
 
 
         public static async Task<Dictionary<string, List<SectorBoundary>>> DownloadSectorBoundaries(bool fileCaching)
@@ -27,7 +35,7 @@ namespace CTPSimulator
 
             foreach (var link in SectorLinks)
             {
-                var uri = new Uri(link.Item1);
+                var uri = new Uri(link);
                 string filePath = Path.Combine(directory.FullName, Path.GetFileName(uri.LocalPath));
 
                 string json;
@@ -53,7 +61,8 @@ namespace CTPSimulator
                     List<SectorBoundary> boundaries = new List<SectorBoundary>();
                     foreach (JToken polygon in boundary["geometry"]["coordinates"])
                     {
-                        List<JToken> coordinatesList = link.Item2 ? (polygon[0]).ToList() : polygon.ToList(); // quadruple or triple nesting
+                        bool isQuadruple = IsQuadrupleNested(polygon);
+                        List<JToken> coordinatesList = isQuadruple ? polygon[0].ToList() : polygon.ToList(); // dynamically detect nesting level
                         double[,] coordinatesArray = new double[coordinatesList.Count, 2];
                         double minLat = double.MaxValue;
                         double maxLat = double.MinValue;
@@ -101,7 +110,7 @@ namespace CTPSimulator
 
                 foreach (var code in fileDefinedCodes) allDefinedCodes.Add(code);
             }
- 
+
             return sectorBoundaries;
         }
     }
